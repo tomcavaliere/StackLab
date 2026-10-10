@@ -1,8 +1,20 @@
-import { useMemo, useRef, useState, type DragEvent } from 'react';
-import { ReactFlow, type Node, type NodeProps } from '@xyflow/react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import {
+  BaseEdge,
+  getBezierPath,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+  type Edge,
+  type EdgeProps,
+  type Node,
+  type NodeProps,
+} from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { CONFIDENCES, KINDS, LAYERS, VERDICTS, type Kind, type Layer } from '../../lib/taxonomy';
 import { scoreStack, type Card, type CardVerdict, type ScenarioRules, type ScoreResult } from '../../lib/scoring';
+import { buildFlow, FLOW_LABELS, nodeId, SOURCES, USER, type FlowKind, type Step } from './flows';
 
 export interface GameTech {
   id: string;
@@ -45,6 +57,8 @@ const CARD_H = 46;
 const GAP = 8;
 const PER_ROW = 5;
 const EMPTY_H = 44;
+const TOP = 60; // bande des acteurs (utilisateur, sources de données), départ des animations
+const STEP_MS = 2400;
 
 export const VERDICT_LABELS: Record<CardVerdict, string> = { ...VERDICTS, 'non-evalue': 'Non évalué' };
 const CARD_STYLES: Record<CardVerdict, string> = {
@@ -65,7 +79,7 @@ const BADGE_STYLES: Record<CardVerdict, string> = {
 type Band = { layer: Layer; y: number; height: number; cards: Card[] };
 
 function layout(cards: Card[]) {
-  let y = 0;
+  let y = TOP;
   const bands: Band[] = LAYER_IDS.map((layer) => {
     const inLayer = cards.filter((c) => c.layer === layer);
     const rows = Math.ceil(inLayer.length / PER_ROW);
@@ -81,17 +95,55 @@ const cardPosition = (band: Band, i: number) => ({
   y: band.y + GAP + Math.floor(i / PER_ROW) * (CARD_H + GAP),
 });
 
-type CardData = { name: string; summary: string; verdict?: CardVerdict; why?: string; onRemove?: () => void };
+type Glow = 'active' | 'visited' | undefined;
+const GLOW_STYLES = { active: 'ring-4 ring-blue-400', visited: 'ring-2 ring-blue-200' };
+
+// Poignées invisibles : une arête descend (b → t) ou remonte (ts → bt) selon la position relative des nœuds.
+function Handles() {
+  const hidden = '!h-1 !w-1 !min-w-0 !border-0 !bg-transparent';
+  return (
+    <>
+      <Handle type="target" position={Position.Top} id="t" isConnectable={false} className={hidden} />
+      <Handle type="source" position={Position.Top} id="ts" isConnectable={false} className={hidden} />
+      <Handle type="source" position={Position.Bottom} id="b" isConnectable={false} className={hidden} />
+      <Handle type="target" position={Position.Bottom} id="bt" isConnectable={false} className={hidden} />
+    </>
+  );
+}
+
+type CardData = {
+  name: string;
+  summary: string;
+  verdict?: CardVerdict;
+  why?: string;
+  onRemove?: () => void;
+  glow?: Glow;
+};
 type CardNodeType = Node<CardData, 'card'>;
+type ActorNodeType = Node<{ label: string; glow?: Glow }, 'actor'>;
+
+function ActorNode({ data }: NodeProps<ActorNodeType>) {
+  return (
+    <div
+      className={`flex h-[40px] w-[150px] items-center justify-center rounded-full border border-slate-300 bg-slate-50 text-sm text-slate-600 ${
+        data.glow ? GLOW_STYLES[data.glow] : ''
+      }`}
+    >
+      <Handles />
+      {data.label}
+    </div>
+  );
+}
 
 function CardNode({ data }: NodeProps<CardNodeType>) {
   return (
     <div
       title={data.why ?? data.summary}
-      className={`flex h-[46px] w-[150px] flex-col justify-center rounded border-2 px-2 text-sm shadow-sm ${
+      className={`flex h-[46px] w-[150px] flex-col justify-center rounded border-2 px-2 text-sm shadow-sm transition-shadow ${
         data.verdict ? CARD_STYLES[data.verdict] : 'border-slate-300 bg-white'
-      }`}
+      } ${data.glow ? GLOW_STYLES[data.glow] : ''}`}
     >
+      <Handles />
       <span className="flex items-center justify-between gap-1">
         <span className="truncate font-medium">{data.name}</span>
         {data.onRemove && (
@@ -109,7 +161,39 @@ function CardNode({ data }: NodeProps<CardNodeType>) {
   );
 }
 
-const nodeTypes = { card: CardNode };
+type FlowEdgeType = Edge<{ active: boolean; dashed?: boolean }, 'flow'>;
+
+// Arête d'animation : un point parcourt le chemin tant que l'étape est en cours.
+function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd }: EdgeProps<FlowEdgeType>) {
+  const [path] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        markerEnd={markerEnd}
+        style={{
+          stroke: data?.active ? '#2563eb' : '#93c5fd',
+          strokeWidth: data?.active ? 3 : 2,
+          strokeDasharray: data?.dashed ? '6 4' : undefined,
+        }}
+      />
+      {data?.active && (
+        <circle r="7" fill="#2563eb">
+          <animateMotion dur="1.4s" repeatCount="indefinite" path={path} />
+        </circle>
+      )}
+    </>
+  );
+}
+
+const nodeTypes = { card: CardNode, actor: ActorNode };
+const edgeTypes = { flow: FlowEdge };
+
+const ACTORS = [
+  { id: USER, label: '👤 Utilisateur', x: LABEL_W },
+  { id: SOURCES, label: '🗄 Sources de données', x: LABEL_W + CARD_W + GAP },
+];
 
 export default function Game({ scenarioId, rules, referenceStack, techs, company }: Props) {
   const techById = useMemo(() => new Map(techs.map((t) => [t.id, t])), [techs]);
@@ -119,8 +203,28 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
   const [saveStatus, setSaveStatus] = useState('');
   const [hover, setHover] = useState<Layer | null>(null);
   const board = useRef<HTMLDivElement>(null);
+  const [flow, setFlow] = useState<{ kind: FlowKind; steps: Step[]; index: number } | null>(null);
   const locked = result !== null;
   const { bands, height } = layout(cards);
+  const flows = useMemo(
+    () => ({ requete: buildFlow('requete', cards, techById), donnees: buildFlow('donnees', cards, techById) }),
+    [cards, techById],
+  );
+
+  // L'animation avance d'une étape à intervalle régulier ; toute modification de la stack l'arrête.
+  useEffect(() => setFlow(null), [cards]);
+  useEffect(() => {
+    if (!flow || flow.index >= flow.steps.length - 1) return;
+    const timer = setTimeout(() => setFlow((f) => f && { ...f, index: f.index + 1 }), STEP_MS);
+    return () => clearTimeout(timer);
+  }, [flow]);
+
+  const glowOf = (id: string): Glow => {
+    if (!flow) return undefined;
+    const touches = (s: Step) => s.from === id || s.to === id || !!s.highlight?.includes(id);
+    if (touches(flow.steps[flow.index])) return 'active';
+    return flow.steps.slice(0, flow.index).some(touches) ? 'visited' : undefined;
+  };
 
   const layerAt = (clientY: number) => {
     const y = clientY - board.current!.getBoundingClientRect().top;
@@ -172,12 +276,20 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
     showDebrief(false);
   }
 
-  const nodes: CardNodeType[] = bands.flatMap((band) =>
+  const actorNodes: ActorNodeType[] = ACTORS.map((a) => ({
+    id: a.id,
+    type: 'actor' as const,
+    position: { x: a.x, y: (TOP - 40) / 2 },
+    draggable: false,
+    selectable: false,
+    data: { label: a.label, glow: glowOf(a.id) },
+  }));
+  const cardNodes: CardNodeType[] = bands.flatMap((band) =>
     band.cards.map((card, i) => {
       const tech = techById.get(card.techId)!;
       const judged = result?.cards.find((r) => r.techId === card.techId && r.layer === card.layer);
       return {
-        id: `${card.layer}:${card.techId}`,
+        id: nodeId(card),
         type: 'card' as const,
         position: cardPosition(band, i),
         draggable: false,
@@ -188,10 +300,33 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
           verdict: judged?.verdict,
           why: judged?.why,
           onRemove: locked ? undefined : () => setCards((cs) => cs.filter((c) => c !== card)),
+          glow: glowOf(nodeId(card)),
         },
       };
     }),
   );
+  const nodes = [...actorNodes, ...cardNodes];
+
+  const top = new Map(nodes.map((n) => [n.id, n.position.y]));
+  const edges: FlowEdgeType[] = flow
+    ? flow.steps.slice(0, flow.index + 1).flatMap((s, i) => {
+        if (!s.from || !s.to) return [];
+        const down = top.get(s.from)! < top.get(s.to)!;
+        return [
+          {
+            id: `flow-${i}`,
+            source: s.from,
+            target: s.to,
+            type: 'flow' as const,
+            sourceHandle: down ? 'b' : 'ts',
+            targetHandle: down ? 't' : 'bt',
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#2563eb' },
+            zIndex: 10, // au-dessus des cartes : une arête peut traverser une colonne de cartes
+            data: { active: i === flow.index, dashed: s.dashed },
+          },
+        ];
+      })
+    : [];
 
   const button = 'rounded px-4 py-2 font-medium disabled:opacity-40';
 
@@ -210,6 +345,12 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
           className="relative overflow-hidden rounded border border-slate-200 bg-white"
           style={{ height }}
         >
+          <div
+            className="absolute inset-x-0 top-0 flex items-center border-b border-slate-200 bg-slate-50 px-3 text-sm text-slate-400"
+            style={{ height: TOP }}
+          >
+            Point de départ
+          </div>
           {bands.map((band) => {
             const required = rules.requiredLayers.includes(band.layer);
             const missing = result?.missingLayers.includes(band.layer);
@@ -237,8 +378,9 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
           <div className="absolute inset-0">
             <ReactFlow
               nodes={nodes}
-              edges={[]}
+              edges={edges}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
               defaultViewport={{ x: 0, y: 0, zoom: 1 }}
               panOnDrag={false}
               panOnScroll={false}
@@ -284,7 +426,59 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
             {cards.length} carte{cards.length > 1 ? 's' : ''} posée{cards.length > 1 ? 's' : ''}
           </span>
           <span className="text-sm text-slate-500">{saveStatus}</span>
+          <span className="ml-auto flex items-center gap-2">
+            {(Object.keys(FLOW_LABELS) as FlowKind[]).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                disabled={flows[kind].length === 0}
+                title={flows[kind].length ? undefined : 'Pose des cartes dans les couches concernées pour animer ce flux'}
+                onClick={() => setFlow({ kind, steps: flows[kind], index: 0 })}
+                className={`${button} border border-blue-600 text-blue-700 hover:bg-blue-50`}
+              >
+                ▶ {FLOW_LABELS[kind]}
+              </button>
+            ))}
+          </span>
         </div>
+
+        {flow && (
+          <div
+            data-flow-caption
+            className="fixed bottom-4 left-1/2 z-50 w-[760px] -translate-x-1/2 rounded-lg border border-blue-200 bg-white px-5 py-3 shadow-xl"
+          >
+            <div className="flex items-center gap-3 text-sm text-slate-500">
+              <span className="font-semibold text-blue-800">{FLOW_LABELS[flow.kind]}</span>
+              <span>
+                Étape {flow.index + 1} / {flow.steps.length}
+              </span>
+              <span className="ml-auto flex gap-1">
+                <button
+                  type="button"
+                  disabled={flow.index === 0}
+                  onClick={() => setFlow({ ...flow, index: flow.index - 1 })}
+                  className="rounded px-2 hover:bg-slate-100 disabled:opacity-30"
+                  aria-label="Étape précédente"
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  disabled={flow.index === flow.steps.length - 1}
+                  onClick={() => setFlow({ ...flow, index: flow.index + 1 })}
+                  className="rounded px-2 hover:bg-slate-100 disabled:opacity-30"
+                  aria-label="Étape suivante"
+                >
+                  ▶
+                </button>
+                <button type="button" onClick={() => setFlow(null)} className="rounded px-2 hover:bg-slate-100" aria-label="Fermer">
+                  ✕
+                </button>
+              </span>
+            </div>
+            <p className="mt-1 text-slate-800">{flow.steps[flow.index].caption}</p>
+          </div>
+        )}
 
         {result && (
           <Results result={result} referenceStack={referenceStack} techById={techById} company={company} />

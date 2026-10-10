@@ -155,5 +155,5 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 - [x] Phase 1 : module Fiches (liste filtrable, page fiche, liens, vues) + fiches de la tranche verticale
 - [x] Phase 2 : scoring + tests + 3 scénarios (MVP SaaS web, API à fort trafic, plateforme data analytique)
 - [x] Phase 3 : jeu jouable (pioche, diagramme en couches, drag & drop, feedback, enregistrement)
-- [ ] Phase 4 : animation des flux (requête utilisateur, flux de données)
+- [x] Phase 4 : animation des flux (requête utilisateur, flux de données)
 - [ ] Phase 5 : stacks d'entreprises (Airbnb, Instagram) + mode devine
