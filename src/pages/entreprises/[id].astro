@@ -1,0 +1,102 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { CONFIDENCES, LAYERS, SOURCE_TYPES, type Layer } from '../../lib/taxonomy';
+import { isOld } from '../../lib/sources';
+
+export async function getStaticPaths() {
+  const companies = await getCollection('companies');
+  return companies.map((company) => ({ params: { id: company.id }, props: { company } }));
+}
+
+const { company } = Astro.props;
+const c = company.data;
+const { Content } = await render(company);
+const techs = new Map((await getCollection('techs')).map((t) => [t.id, t]));
+const layers = (Object.keys(LAYERS) as Layer[]).filter((l) => c.stack[l]?.length);
+const date = (d: Date) => d.toISOString().slice(0, 10);
+const CONFIDENCE_STYLES = {
+  confirme: 'bg-emerald-100 text-emerald-800',
+  probable: 'bg-amber-100 text-amber-800',
+  indice: 'bg-slate-200 text-slate-700',
+};
+const oldCount = Object.values(c.stack)
+  .flat()
+  .filter((e) => isOld(e!.sourceDate)).length;
+---
+
+<Base title={c.company}>
+  <a href="/entreprises" class="text-sm text-slate-500 hover:text-blue-700">← Entreprises</a>
+  <h1 class="mt-2 text-3xl font-bold">{c.company}</h1>
+  <p class="text-slate-500">{c.product}</p>
+  <p class="mt-3 max-w-3xl text-lg">{c.need}</p>
+  <p class="mt-2 text-sm text-slate-500">
+    Recherche du {date(c.lastResearched)}
+    {oldCount > 0 && <span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">⚠ {oldCount} source{oldCount > 1 ? 's' : ''} de plus de 3 ans</span>}
+  </p>
+
+  {
+    c.scenario && (
+      <a
+        href={`/jouer/${c.scenario.id}`}
+        class="mt-4 inline-block rounded bg-violet-600 px-4 py-2 font-medium text-white hover:bg-violet-700"
+      >
+        Devine d'abord la stack de {c.company} →
+      </a>
+    )
+  }
+
+  <table class="mt-6 w-full overflow-hidden rounded bg-white text-sm">
+    <thead class="bg-slate-100 text-left text-slate-600">
+      <tr>
+        <th class="px-3 py-2">Couche</th>
+        <th class="px-3 py-2">Techno</th>
+        <th class="px-3 py-2">Confiance</th>
+        <th class="px-3 py-2">Type</th>
+        <th class="px-3 py-2">Date</th>
+        <th class="px-3 py-2">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        layers.flatMap((l) =>
+          c.stack[l]!.map((e) => {
+            const old = isOld(e.sourceDate);
+            return (
+              <tr class:list={['border-t border-slate-100 align-top', old && 'bg-amber-50']}>
+                <td class="px-3 py-2 whitespace-nowrap">{LAYERS[l]}</td>
+                <td class="px-3 py-2 whitespace-nowrap">
+                  <a href={`/fiches/${e.tech.id}`} class="font-medium text-blue-700 underline">
+                    {techs.get(e.tech.id)?.data.name}
+                  </a>
+                </td>
+                <td class="px-3 py-2">
+                  <span class={`rounded px-1.5 py-0.5 text-xs ${CONFIDENCE_STYLES[e.confidence]}`}>{CONFIDENCES[e.confidence]}</span>
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap">{SOURCE_TYPES[e.sourceType]}</td>
+                <td class="px-3 py-2 whitespace-nowrap">
+                  {date(e.sourceDate)}
+                  {old && (
+                    <span class="ml-1 rounded bg-amber-200 px-1 text-xs text-amber-900" title="Source de plus de 3 ans">
+                      ⚠ + de 3 ans
+                    </span>
+                  )}
+                </td>
+                <td class="px-3 py-2">
+                  <a href={e.source} target="_blank" class="text-blue-700 underline">
+                    {e.sourceTitle}
+                  </a>
+                  {e.note && <p class="mt-0.5 text-slate-500">{e.note}</p>}
+                </td>
+              </tr>
+            );
+          }),
+        )
+      }
+    </tbody>
+  </table>
+
+  <div class="md mt-6 max-w-3xl">
+    <Content />
+  </div>
+</Base>

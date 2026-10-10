@@ -45,9 +45,17 @@ src/
   lib/
     taxonomy.ts          vocabulaires contrôlés (kinds, couches, verdicts…) : slug -> libellé
     db.ts, schema.sql    SQLite : ouverture paresseuse, schéma appliqué si la base n'existe pas
+    scoring.ts (+ .test) score d'une partie, fonction pure
+    sources.ts           isOld() : source de plus de 3 ans
+  components/game/
+    Game.tsx             îlot du jeu : pioche, plateau React Flow, résultats, lecture des animations
+    flows.ts             étapes des animations (requête utilisateur, flux de données), fonction pure
   pages/
-    api/views.ts         POST { techId } : enregistre une consultation de fiche
-    api/attempts.ts      POST { scenarioId, score, cards: [{ techId, layer, verdict }] } : enregistre une partie
+    fiches/              liste filtrable + page fiche (enregistre une vue)
+    jouer/               liste des scénarios + page de partie (îlot Game, debrief)
+    entreprises/         liste + page entreprise (sources, ⚠ > 3 ans)
+    api/views.ts         POST { techId } : enregistre une vue · GET : vues par fiche
+    api/attempts.ts      POST { scenarioId, score, cards: [{ techId, layer, verdict }] } : enregistre une partie · GET : meilleur score par scénario
   layouts/Base.astro
 scripts/check-sections.mjs   sections imposées du corps des fiches (Zod ne voit que le frontmatter)
 data/stacklab.db             base locale, ignorée par git
@@ -106,7 +114,7 @@ La fiche apparaît alors dans la liste des fiches et, si `layers` n'est pas vide
    - `referenceStack` : une stack valide parmi d'autres, par couche (`{ backend-api: [django], … }`).
 3. Corps Markdown = le raisonnement du debrief.
 4. Le surdimensionnement s'exprime par des verdicts écrits (ex. Spark `surdimensionne` pour quelques milliers de lignes), pas par un calcul sur les contraintes.
-5. Vérifier que chaque tech de `referenceStack` a un verdict `ideal` ou `acceptable` dans sa couche, puis `npm run build`.
+5. `npm run build` : le build vérifie que les couches requises figurent dans `referenceStack` et que chaque tech y a un verdict `ideal` ou `acceptable` dans sa couche.
 
 ### Règles de scoring (phase 2, `src/lib/scoring.ts`)
 
@@ -156,4 +164,4 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 - [x] Phase 2 : scoring + tests + 3 scénarios (MVP SaaS web, API à fort trafic, plateforme data analytique)
 - [x] Phase 3 : jeu jouable (pioche, diagramme en couches, drag & drop, feedback, enregistrement)
 - [x] Phase 4 : animation des flux (requête utilisateur, flux de données)
-- [ ] Phase 5 : stacks d'entreprises (Airbnb, Instagram) + mode devine
+- [x] Phase 5 : stacks d'entreprises (Airbnb, Instagram) + mode devine
