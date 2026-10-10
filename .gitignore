@@ -1,0 +1,16 @@
+# environnement virtuel (Python + Node via nodeenv)
+.venv/
+
+# dépendances et sorties
+node_modules/
+dist/
+.astro/
+
+# base locale (progression et historique de jeu)
+data/*.db
+data/*.db-*
+
+# éditeur / OS
+.vscode/*
+!.vscode/settings.json
+Thumbs.db

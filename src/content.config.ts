@@ -1,0 +1,93 @@
+import { existsSync } from 'node:fs';
+import { defineCollection, reference } from 'astro:content';
+import { glob } from 'astro/loaders';
+import { z } from 'astro/zod';
+import { CONFIDENCES, KINDS, LAYERS, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids } from './lib/taxonomy';
+
+// reference() d'Astro 7 ne vérifie pas que l'id existe : il le transforme seulement en { id, collection }.
+// ref() ajoute ce contrôle, si bien qu'un id sans fichier correspondant fait échouer le build.
+// L'id d'une entrée est le nom de son fichier (kebab-case, sans extension).
+const ref = (collection: 'techs' | 'scenarios') =>
+  z
+    .string()
+    .refine((id) => existsSync(`src/content/${collection}/${id}.md`), {
+      error: (issue) =>
+        `id inconnu "${issue.input}" : le fichier src/content/${collection}/${issue.input}.md n'existe pas`,
+    })
+    .pipe(reference(collection));
+
+const layer = z.enum(ids(LAYERS));
+const linkedTech = z.strictObject({ tech: ref('techs'), note: z.string() });
+
+const techs = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/techs' }),
+  schema: z.strictObject({
+    name: z.string(),
+    kind: z.enum(ids(KINDS)),
+    layers: z.array(layer), // vide pour un langage : il n'est pas jouable comme carte
+    languages: z.array(ref('techs')).default([]), // langages dans lesquels on écrit du code avec cette techno
+    tags: z.array(z.string()).default([]),
+    difficulty: z.literal([1, 2, 3]),
+    summary: z.string(),
+    alternatives: z.array(linkedTech).default([]),
+    integratesWith: z.array(linkedTech).default([]),
+  }),
+});
+
+const scenarios = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/scenarios' }),
+  schema: z.strictObject({
+    title: z.string(),
+    type: z.enum(ids(SCENARIO_TYPES)),
+    brief: z.string(),
+    constraints: z.strictObject({
+      team: z.string(),
+      budget: z.string(),
+      volume: z.string(),
+      latency: z.string(),
+      timeToMarket: z.string(),
+    }),
+    requiredLayers: z.array(layer).min(1),
+    optionalLayers: z.array(layer).default([]),
+    verdicts: z.partialRecord(
+      layer,
+      z.array(z.strictObject({ tech: ref('techs'), verdict: z.enum(ids(VERDICTS)), why: z.string() })),
+    ),
+    antiPatterns: z
+      .array(z.strictObject({ techs: z.array(ref('techs')).min(2), penalty: z.number().int().positive(), why: z.string() }))
+      .default([]),
+    referenceStack: z.partialRecord(layer, z.array(ref('techs'))),
+  }),
+});
+
+const companies = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/companies' }),
+  schema: z.strictObject({
+    company: z.string(),
+    product: z.string(),
+    need: z.string(),
+    scenario: ref('scenarios').optional(), // scénario du mode « devine la stack »
+    lastResearched: z.coerce.date(),
+    stack: z.partialRecord(
+      layer,
+      z.array(
+        z
+          .strictObject({
+            tech: ref('techs'),
+            source: z.url(),
+            sourceTitle: z.string(),
+            sourceDate: z.coerce.date(),
+            sourceType: z.enum(ids(SOURCE_TYPES)),
+            confidence: z.enum(ids(CONFIDENCES)),
+            note: z.string().optional(),
+          })
+          .refine((e) => e.sourceType !== 'offre-emploi' || e.confidence === 'indice', {
+            error: "une offre d'emploi seule ne peut donner que la confiance 'indice'",
+            path: ['confidence'],
+          }),
+      ),
+    ),
+  }),
+});
+
+export const collections = { techs, scenarios, companies };

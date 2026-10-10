@@ -1,0 +1,7 @@
+{
+  // Les terminaux VS Code de ce projet utilisent node, npm et sqlite3 du venv, sans activation manuelle.
+  "terminal.integrated.env.windows": {
+    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
+}

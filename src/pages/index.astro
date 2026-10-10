@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const [techs, scenarios, companies] = await Promise.all([
+  getCollection('techs'),
+  getCollection('scenarios'),
+  getCollection('companies'),
+]);
+---
+
+<Base title="Accueil">
+  <h1 class="text-2xl font-bold">StackLab</h1>
+  <ul class="mt-4 list-disc pl-6">
+    <li>{techs.length} fiches techno</li>
+    <li>{scenarios.length} scénarios</li>
+    <li>{companies.length} stacks d'entreprise</li>
+  </ul>
+</Base>
