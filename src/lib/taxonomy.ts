@@ -72,3 +72,9 @@ export type Verdict = keyof typeof VERDICTS;
 /** Clés d'un vocabulaire, au format attendu par z.enum(). */
 export const ids = <T extends Record<string, string>>(vocab: T) =>
   Object.keys(vocab) as [keyof T & string, ...(keyof T & string)[]];
+
+export const DIFFICULTIES = {
+  1: 'Prise en main rapide',
+  2: 'Demande de la pratique',
+  3: 'Expertise ou exploitation lourde',
+} as const;

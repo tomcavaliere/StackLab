@@ -152,7 +152,7 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 ## Avancement
 
 - [x] Phase 0 : socle (environnement, schémas, garde-fous du build, SQLite, endpoints, CLAUDE.md), 3 fiches d'échantillon (sql, postgresql, mongodb)
-- [ ] Phase 1 : module Fiches (liste filtrable, page fiche, liens, vues) + fiches de la tranche verticale
+- [x] Phase 1 : module Fiches (liste filtrable, page fiche, liens, vues) + fiches de la tranche verticale
 - [ ] Phase 2 : scoring + tests + 3 scénarios (MVP SaaS web, API à fort trafic, plateforme data analytique)
 - [ ] Phase 3 : jeu jouable (pioche, diagramme en couches, drag & drop, feedback, enregistrement)
 - [ ] Phase 4 : animation des flux (requête utilisateur, flux de données)

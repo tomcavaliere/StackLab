@@ -1,0 +1,12 @@
+---
+import { LAYERS, type Layer } from '../lib/taxonomy';
+
+interface Props {
+  layers: Layer[];
+}
+const { layers } = Astro.props;
+---
+
+<span class="flex flex-wrap gap-1">
+  {layers.map((l) => <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{LAYERS[l]}</span>)}
+</span>

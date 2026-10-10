@@ -7,13 +7,27 @@ const [techs, scenarios, companies] = await Promise.all([
   getCollection('scenarios'),
   getCollection('companies'),
 ]);
+const modules = [
+  { href: '/fiches', title: 'Fiches', count: `${techs.length} fiches techno`, text: 'Le rôle de chaque techno, quand la choisir et quand l\'éviter.' },
+  { href: '/jouer', title: 'Jouer', count: `${scenarios.length} scénarios`, text: 'Composer une stack pour un besoin client, puis lire le debrief.' },
+  { href: '/entreprises', title: 'Entreprises', count: `${companies.length} stacks d'entreprise`, text: 'Les stacks réelles, sourcées, et le mode « devine la stack ».' },
+];
 ---
 
 <Base title="Accueil">
   <h1 class="text-2xl font-bold">StackLab</h1>
-  <ul class="mt-4 list-disc pl-6">
-    <li>{techs.length} fiches techno</li>
-    <li>{scenarios.length} scénarios</li>
-    <li>{companies.length} stacks d'entreprise</li>
+  <p class="mt-1 text-slate-600">Comprendre le rôle de chaque techno dans une stack et s'entraîner à en composer une.</p>
+  <ul class="mt-6 grid grid-cols-3 gap-4">
+    {
+      modules.map((m) => (
+        <li>
+          <a href={m.href} class="block h-full rounded border border-slate-200 bg-white p-5 hover:border-slate-400">
+            <span class="text-lg font-semibold">{m.title}</span>
+            <span class="block text-sm text-slate-500">{m.count}</span>
+            <span class="mt-2 block text-slate-700">{m.text}</span>
+          </a>
+        </li>
+      ))
+    }
   </ul>
 </Base>

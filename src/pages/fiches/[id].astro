@@ -1,0 +1,171 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import LayerBadges from '../../components/LayerBadges.astro';
+import { CONFIDENCES, DIFFICULTIES, KINDS, LAYERS, type Layer } from '../../lib/taxonomy';
+
+export async function getStaticPaths() {
+  const techs = await getCollection('techs');
+  return techs.map((tech) => ({ params: { id: tech.id }, props: { tech } }));
+}
+
+const { tech } = Astro.props;
+const { Content } = await render(tech);
+const all = await getCollection('techs');
+const byId = new Map(all.map((t) => [t.id, t]));
+const companies = await getCollection('companies');
+const d = tech.data;
+
+type Link = { tech: CollectionEntry<'techs'>; note: string };
+
+// Liens affichés dans les deux sens : un lien déclaré sur A vers B apparaît aussi sur B.
+// La note d'une alternative décrit l'autre techno : vue depuis B, elle parle de B, d'où la mention.
+function links(field: 'alternatives' | 'integratesWith'): Link[] {
+  const out: Link[] = d[field].map((l) => ({ tech: byId.get(l.tech.id)!, note: l.note }));
+  for (const other of all) {
+    for (const l of other.data[field]) {
+      if (l.tech.id !== tech.id || out.some((o) => o.tech.id === other.id)) continue;
+      const note =
+        field === 'alternatives' ? `Depuis la fiche ${other.data.name}, à propos de ${d.name} : ${l.note}` : l.note;
+      out.push({ tech: other, note });
+    }
+  }
+  return out.sort((a, b) => a.tech.data.name.localeCompare(b.tech.data.name, 'fr'));
+}
+
+const sections = [
+  { title: 'Alternatives', items: links('alternatives') },
+  { title: "S'intègre avec", items: links('integratesWith') },
+];
+const languages = d.languages.map((l) => byId.get(l.id)!);
+const writtenWith = all.filter((t) => t.data.languages.some((l) => l.id === tech.id));
+const usedBy = companies.flatMap((c) =>
+  Object.entries(c.data.stack).flatMap(([layer, entries]) =>
+    entries!
+      .filter((e) => e.tech.id === tech.id)
+      .map((e) => ({ company: c, layer: layer as Layer, confidence: e.confidence })),
+  ),
+);
+const link = 'text-blue-700 underline';
+---
+
+<Base title={d.name}>
+  <article data-tech-id={tech.id}>
+    <a href="/fiches" class="text-sm text-slate-500 hover:text-blue-700">← Fiches</a>
+    <header class="mt-2 flex items-baseline gap-3">
+      <h1 class="text-3xl font-bold">{d.name}</h1>
+      <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{KINDS[d.kind]}</span>
+      <span class="text-sm text-slate-500">
+        {'●'.repeat(d.difficulty)}{'○'.repeat(3 - d.difficulty)}
+        {DIFFICULTIES[d.difficulty]}
+      </span>
+    </header>
+
+    <p class="mt-3 max-w-3xl rounded border-l-4 border-blue-400 bg-white px-4 py-3 text-lg">
+      <span class="block text-xs font-semibold tracking-wide text-slate-500 uppercase">En une phrase</span>
+      {d.summary}
+    </p>
+
+    <dl class="mt-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+      {
+        d.layers.length > 0 ? (
+          <>
+            <dt class="text-slate-500">Couches</dt>
+            <dd><LayerBadges layers={d.layers} /></dd>
+          </>
+        ) : (
+          <>
+            <dt class="text-slate-500">Couches</dt>
+            <dd class="text-slate-500">aucune : un langage n'est pas une carte du jeu</dd>
+          </>
+        )
+      }
+      {
+        languages.length > 0 && (
+          <>
+            <dt class="text-slate-500">On écrit en</dt>
+            <dd>
+              {languages.map((l, i) => (
+                <>
+                  {i > 0 && ', '}
+                  <a href={`/fiches/${l.id}`} class={link}>{l.data.name}</a>
+                </>
+              ))}
+            </dd>
+          </>
+        )
+      }
+      {
+        writtenWith.length > 0 && (
+          <>
+            <dt class="text-slate-500">S'utilise avec</dt>
+            <dd>
+              {writtenWith.map((t, i) => (
+                <>
+                  {i > 0 && ', '}
+                  <a href={`/fiches/${t.id}`} class={link}>{t.data.name}</a>
+                </>
+              ))}
+            </dd>
+          </>
+        )
+      }
+      {
+        d.tags.length > 0 && (
+          <>
+            <dt class="text-slate-500">Tags</dt>
+            <dd>
+              {d.tags.map((t) => (
+                <a href={`/fiches?tag=${t}`} class="mr-2 text-slate-600 hover:text-blue-700">#{t}</a>
+              ))}
+            </dd>
+          </>
+        )
+      }
+      {
+        usedBy.length > 0 && (
+          <>
+            <dt class="text-slate-500">Utilisée par</dt>
+            <dd>
+              {usedBy.map((u, i) => (
+                <>
+                  {i > 0 && ', '}
+                  <a href={`/entreprises/${u.company.id}`} class={link}>{u.company.data.company}</a>
+                  <span class="text-slate-500"> ({LAYERS[u.layer]}, {CONFIDENCES[u.confidence].toLowerCase()})</span>
+                </>
+              ))}
+            </dd>
+          </>
+        )
+      }
+    </dl>
+
+    <div class="md mt-4 max-w-3xl">
+      <Content />
+    </div>
+
+    {
+      sections.map(
+        (s) =>
+          s.items.length > 0 && (
+            <section class="mt-6 max-w-3xl">
+              <h2 class="mb-2 text-lg font-semibold">{s.title}</h2>
+              <ul class="space-y-2">
+                {s.items.map((l) => (
+                  <li class="rounded border border-slate-200 bg-white px-3 py-2">
+                    <a href={`/fiches/${l.tech.id}`} class="font-medium text-blue-700 underline">{l.tech.data.name}</a>
+                    <span class="text-sm text-slate-600"> : {l.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ),
+      )
+    }
+  </article>
+</Base>
+
+<script>
+  const techId = document.querySelector<HTMLElement>('[data-tech-id]')!.dataset.techId;
+  fetch('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ techId }) });
+</script>

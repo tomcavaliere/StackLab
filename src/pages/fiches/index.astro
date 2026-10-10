@@ -1,0 +1,107 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import LayerBadges from '../../components/LayerBadges.astro';
+import { KINDS, LAYERS } from '../../lib/taxonomy';
+
+const techs = (await getCollection('techs')).sort((a, b) => a.data.name.localeCompare(b.data.name, 'fr'));
+const kinds = Object.entries(KINDS).filter(([k]) => techs.some((t) => t.data.kind === k));
+const layers = Object.entries(LAYERS).filter(([l]) => techs.some((t) => (t.data.layers as string[]).includes(l)));
+const tags = [...new Set(techs.flatMap((t) => t.data.tags))].sort();
+const field = 'rounded border border-slate-300 bg-white px-2 py-1';
+---
+
+<Base title="Fiches">
+  <h1 class="text-2xl font-bold">Fiches techno</h1>
+  <form id="filters" class="mt-4 flex flex-wrap items-center gap-3">
+    <input name="q" type="search" placeholder="Rechercher…" class={`${field} w-64`} autofocus />
+    <select name="kind" class={field}>
+      <option value="">Tous les types</option>
+      {kinds.map(([k, label]) => <option value={k}>{label}</option>)}
+    </select>
+    <select name="layer" class={field}>
+      <option value="">Toutes les couches</option>
+      {layers.map(([l, label]) => <option value={l}>{label}</option>)}
+    </select>
+    <select name="tag" class={field}>
+      <option value="">Tous les tags</option>
+      {tags.map((t) => <option value={t}>{t}</option>)}
+    </select>
+    <label class="flex items-center gap-1 text-sm"><input name="unread" type="checkbox" /> non lues</label>
+    <span id="count" class="text-sm text-slate-500"></span>
+  </form>
+
+  <ul class="mt-4 grid grid-cols-3 gap-4">
+    {
+      techs.map((t) => (
+        <li
+          data-id={t.id}
+          data-kind={t.data.kind}
+          data-layers={t.data.layers.join(' ')}
+          data-tags={t.data.tags.join(' ')}
+          data-text={`${t.data.name} ${t.id} ${t.data.summary}`.toLowerCase()}
+        >
+          <a href={`/fiches/${t.id}`} class="flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-4 hover:border-slate-400">
+            <span class="flex items-baseline justify-between gap-2">
+              <span class="font-semibold">{t.data.name}</span>
+              <span class="text-xs text-slate-500">
+                <span data-viewed hidden class="text-emerald-700">✓ lue · </span>
+                {KINDS[t.data.kind]}
+              </span>
+            </span>
+            <span class="text-sm text-slate-600">{t.data.summary}</span>
+            <LayerBadges layers={t.data.layers} />
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</Base>
+
+<script>
+  const form = document.getElementById('filters') as HTMLFormElement;
+  const count = document.getElementById('count')!;
+  const items = [...document.querySelectorAll<HTMLElement>('li[data-id]')];
+  let views: Record<string, number> = {};
+
+  // Filtres pré-remplis depuis l'URL (?tag=…, ?layer=…), utilisés par les liens des fiches.
+  const params = new URLSearchParams(location.search);
+  for (const [name, value] of params) {
+    const input = form.elements.namedItem(name);
+    if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) input.value = value;
+  }
+
+  function apply() {
+    const f = new FormData(form);
+    const q = String(f.get('q') ?? '').toLowerCase().trim();
+    const kind = f.get('kind');
+    const layer = String(f.get('layer') ?? '');
+    const tag = String(f.get('tag') ?? '');
+    const unread = f.get('unread') === 'on';
+    let n = 0;
+    for (const li of items) {
+      const d = li.dataset;
+      const ok =
+        (!q || d.text!.includes(q)) &&
+        (!kind || d.kind === kind) &&
+        (!layer || d.layers!.split(' ').includes(layer)) &&
+        (!tag || d.tags!.split(' ').includes(tag)) &&
+        (!unread || !views[d.id!]);
+      li.hidden = !ok;
+      if (ok) n++;
+    }
+    count.textContent = `${n} fiche${n > 1 ? 's' : ''}`;
+  }
+
+  form.addEventListener('input', apply);
+  form.addEventListener('submit', (e) => e.preventDefault());
+  apply();
+
+  fetch('/api/views')
+    .then((r) => r.json())
+    .then((v) => {
+      views = v;
+      for (const li of items) li.querySelector<HTMLElement>('[data-viewed]')!.hidden = !views[li.dataset.id!];
+      apply();
+    });
+</script>
