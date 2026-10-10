@@ -1,0 +1,48 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import LayerBadges from '../../components/LayerBadges.astro';
+import { SCENARIO_TYPES } from '../../lib/taxonomy';
+
+const scenarios = (await getCollection('scenarios')).sort((a, b) => a.data.title.localeCompare(b.data.title, 'fr'));
+const companies = await getCollection('companies');
+const guessOf = (id: string) => companies.find((c) => c.data.scenario?.id === id);
+---
+
+<Base title="Jouer">
+  <h1 class="text-2xl font-bold">Scénarios</h1>
+  <p class="mt-1 text-slate-600">Lis le besoin du client, compose une stack couche par couche, puis compare-la au debrief.</p>
+  <ul class="mt-6 grid grid-cols-2 gap-4">
+    {
+      scenarios.map((s) => {
+        const company = guessOf(s.id);
+        return (
+          <li data-scenario={s.id}>
+            <a href={`/jouer/${s.id}`} class="flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400">
+              <span class="flex items-baseline justify-between gap-3">
+                <span class="text-lg font-semibold">{s.data.title}</span>
+                <span class="shrink-0 rounded bg-slate-200 px-2 py-0.5 text-xs">{SCENARIO_TYPES[s.data.type]}</span>
+              </span>
+              {company && <span class="text-sm font-medium text-violet-700">Devine la stack de {company.data.company}</span>}
+              <span class="line-clamp-3 text-sm text-slate-600">{s.data.brief}</span>
+              <span class="text-xs text-slate-500">Couches requises :</span>
+              <LayerBadges layers={s.data.requiredLayers} />
+              <span data-best class="text-sm text-slate-500">Jamais joué</span>
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+</Base>
+
+<script>
+  fetch('/api/attempts')
+    .then((r) => r.json())
+    .then((stats: Record<string, { best: number; count: number }>) => {
+      for (const li of document.querySelectorAll<HTMLElement>('[data-scenario]')) {
+        const s = stats[li.dataset.scenario!];
+        if (s) li.querySelector('[data-best]')!.textContent = `Meilleur score : ${s.best}/100 · ${s.count} partie${s.count > 1 ? 's' : ''}`;
+      }
+    });
+</script>

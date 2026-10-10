@@ -1,0 +1,103 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Game, { type CompanyStack, type GameTech } from '../../components/game/Game';
+import { SCENARIO_TYPES, type Layer } from '../../lib/taxonomy';
+import type { ScenarioRules } from '../../lib/scoring';
+
+export async function getStaticPaths() {
+  const scenarios = await getCollection('scenarios');
+  return scenarios.map((scenario) => ({ params: { id: scenario.id }, props: { scenario } }));
+}
+
+const { scenario } = Astro.props;
+const s = scenario.data;
+const { Content } = await render(scenario);
+
+// L'îlot reçoit des données sérialisables avec des ids en clair (les références Astro sont des { id, collection }).
+const ids = (refs: { id: string }[]) => refs.map((r) => r.id);
+const techs: GameTech[] = (await getCollection('techs'))
+  .filter((t) => t.data.layers.length > 0)
+  .map((t) => ({ id: t.id, name: t.data.name, kind: t.data.kind, summary: t.data.summary, layers: t.data.layers, tags: t.data.tags }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+const rules: ScenarioRules = {
+  requiredLayers: s.requiredLayers,
+  optionalLayers: s.optionalLayers,
+  verdicts: Object.fromEntries(
+    Object.entries(s.verdicts).map(([l, vs]) => [l, vs!.map((v) => ({ tech: v.tech.id, verdict: v.verdict, why: v.why }))]),
+  ),
+  antiPatterns: s.antiPatterns.map((a) => ({ ...a, techs: ids(a.techs) })),
+};
+const referenceStack = Object.fromEntries(Object.entries(s.referenceStack).map(([l, ts]) => [l, ids(ts!)])) as Partial<
+  Record<Layer, string[]>
+>;
+
+const company = (await getCollection('companies')).find((c) => c.data.scenario?.id === scenario.id);
+const companyStack: CompanyStack | undefined = company && {
+  id: company.id,
+  company: company.data.company,
+  entries: Object.entries(company.data.stack).flatMap(([layer, entries]) =>
+    entries!.map((e) => ({
+      layer: layer as Layer,
+      techId: e.tech.id,
+      confidence: e.confidence,
+      sourceTitle: e.sourceTitle,
+      source: e.source,
+      sourceDate: e.sourceDate.toISOString().slice(0, 10),
+    })),
+  ),
+};
+
+const constraints = [
+  ['Équipe', s.constraints.team],
+  ['Budget', s.constraints.budget],
+  ['Volume', s.constraints.volume],
+  ['Latence', s.constraints.latency],
+  ['Délai', s.constraints.timeToMarket],
+];
+---
+
+<Base title={s.title} wide>
+  <a href="/jouer" class="text-sm text-slate-500 hover:text-blue-700">← Scénarios</a>
+  <header class="mt-2 flex items-baseline gap-3">
+    <h1 class="text-2xl font-bold">{s.title}</h1>
+    <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{SCENARIO_TYPES[s.type]}</span>
+    {company && <span class="text-sm font-medium text-violet-700">Devine la stack de {company.data.company}</span>}
+  </header>
+
+  <div class="mt-4 grid grid-cols-[3fr_2fr] gap-6">
+    <blockquote class="rounded border-l-4 border-blue-400 bg-white px-5 py-4 leading-relaxed text-slate-800">
+      <span class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Le besoin du client</span>
+      {s.brief}
+    </blockquote>
+    <dl class="grid grid-cols-[max-content_1fr] content-start gap-x-4 gap-y-1.5 rounded bg-white px-5 py-4 text-sm">
+      {
+        constraints.map(([label, value]) => (
+          <>
+            <dt class="text-slate-500">{label}</dt>
+            <dd>{value}</dd>
+          </>
+        ))
+      }
+    </dl>
+  </div>
+
+  <p class="mt-4 mb-2 text-sm text-slate-500">
+    Glisse les cartes de la pioche vers les couches du diagramme. Une même techno peut occuper plusieurs couches. Les
+    couches marquées « requise » doivent être remplies.
+  </p>
+
+  <Game
+    client:only="react"
+    scenarioId={scenario.id}
+    rules={rules}
+    referenceStack={referenceStack}
+    techs={techs}
+    company={companyStack}
+  />
+
+  <section id="debrief" hidden class="md mt-8 max-w-3xl rounded bg-white px-6 py-4">
+    <h2 class="!mt-0 text-xl">Debrief</h2>
+    <Content />
+  </section>
+</Base>

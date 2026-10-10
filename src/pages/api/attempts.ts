@@ -12,6 +12,14 @@ const Body = z.object({
   cards: z.array(z.object({ techId: z.string(), layer: z.string(), verdict: z.string() })),
 });
 
+/** Meilleur score et nombre de parties par scénario : { [scenarioId]: { best, count } }. */
+export const GET: APIRoute = () => {
+  const rows = getDb()
+    .prepare('SELECT scenario_id, max(score) AS best, count(*) AS n FROM attempts GROUP BY scenario_id')
+    .all() as { scenario_id: string; best: number; n: number }[];
+  return Response.json(Object.fromEntries(rows.map((r) => [r.scenario_id, { best: r.best, count: r.n }])));
+};
+
 /** Enregistre une partie et le verdict de chaque carte. Répond { id } (id de la partie). */
 export const POST: APIRoute = async ({ request }) => {
   const parsed = Body.safeParse(await request.json());
