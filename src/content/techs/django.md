@@ -1,7 +1,7 @@
 ---
 name: Django
 kind: framework
-layers: [backend-api, auth]
+layers: [frontend, backend-api, auth]
 languages: [python]
 tags: [open-source, web, batteries-incluses]
 difficulty: 2
@@ -22,7 +22,7 @@ integratesWith:
 
 ## Problème résolu
 
-Une application web refait toujours les mêmes briques : modèle de données et migrations, formulaires et validation, comptes utilisateurs et permissions, back-office pour gérer les données. Django (publié en 2005) les fournit toutes, cohérentes entre elles. On décrit ses modèles en Python, l'ORM génère les tables et les migrations, et l'interface d'administration est disponible sans écrire de code.
+Une application web refait toujours les mêmes briques : modèle de données et migrations, formulaires et validation, comptes utilisateurs et permissions, back-office pour gérer les données. Django (publié en 2005) les fournit toutes, cohérentes entre elles. On décrit ses modèles en Python, l'ORM génère les tables et les migrations, et l'interface d'administration est disponible sans écrire de code. Les pages HTML peuvent être rendues côté serveur par son système de gabarits, sans application front séparée.
 
 L'authentification (`django.contrib.auth`) gère les comptes, les mots de passe hachés, les sessions, les groupes et les permissions. Pour exposer une API REST, le paquet tiers Django REST Framework est la référence.
 

@@ -1,7 +1,7 @@
 ---
 name: Ruby on Rails
 kind: framework
-layers: [backend-api, auth]
+layers: [frontend, backend-api, auth]
 languages: [ruby]
 tags: [open-source, web, batteries-incluses]
 difficulty: 2

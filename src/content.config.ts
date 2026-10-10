@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
-import { CONFIDENCES, KINDS, LAYERS, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids } from './lib/taxonomy';
+import { CONFIDENCES, KINDS, LAYERS, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids, type Layer } from './lib/taxonomy';
 
 // reference() d'Astro 7 ne vérifie pas que l'id existe : il le transforme seulement en { id, collection }.
 // ref() ajoute ce contrôle, si bien qu'un id sans fichier correspondant fait échouer le build.
@@ -57,7 +57,28 @@ const scenarios = defineCollection({
       .array(z.strictObject({ techs: z.array(ref('techs')).min(2), penalty: z.number().int().positive(), why: z.string() }))
       .default([]),
     referenceStack: z.partialRecord(layer, z.array(ref('techs'))),
-  }),
+  })
+    .superRefine((s, ctx) => {
+      // La stack de référence doit être une réponse valide : couches requises remplies,
+      // et chaque tech avec un verdict ideal ou acceptable dans sa couche.
+      for (const l of s.requiredLayers) {
+        if (!s.referenceStack[l]?.length) {
+          ctx.addIssue({ code: 'custom', path: ['referenceStack'], message: `couche requise "${l}" absente` });
+        }
+      }
+      for (const [l, techs] of Object.entries(s.referenceStack) as [Layer, { id: string }[]][]) {
+        for (const tech of techs) {
+          const verdict = s.verdicts[l]?.find((v) => v.tech.id === tech.id)?.verdict;
+          if (verdict !== 'ideal' && verdict !== 'acceptable') {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['referenceStack', l],
+              message: `"${tech.id}" n'a pas de verdict ideal ou acceptable dans verdicts.${l}`,
+            });
+          }
+        }
+      }
+    }),
 });
 
 const companies = defineCollection({
