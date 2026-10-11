@@ -7,6 +7,7 @@ import { questionStats } from '../../lib/rewards';
 export const prerender = false;
 
 // La justesse est calculée côté client (chosenTech === correctTech) ; on stocke les réponses telles quelles.
+// Quiz d'une techno : themeId = « tech:<id de la fiche> », chosenTech et correctTech = texte des options.
 const Body = z.object({
   themeId: z.string(),
   answers: z.array(z.object({ questionId: z.string(), chosenTech: z.string(), correctTech: z.string() })).min(1),

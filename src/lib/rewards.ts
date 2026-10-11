@@ -20,11 +20,18 @@ export interface History {
   viewedTechs: string[]; // ids distincts
 }
 
-/** Un thème de quiz tel que décrit dans le contenu : ses questions actuelles. */
+/** Un quiz tel que décrit dans le contenu (thème, ou techno avec l'id de sa fiche) : ses questions actuelles. */
 export interface Theme {
   id: string;
   questionIds: string[];
 }
+
+// Les sessions du quiz d'une techno sont enregistrées comme celles d'un thème, avec theme_id = « tech:<id de la fiche> ».
+// Leurs réponses (chosenTech, correctTech) sont alors le texte des options, pas des ids de techno.
+const TECH_PREFIX = 'tech:';
+export const techQuizId = (techId: string) => `${TECH_PREFIX}${techId}`;
+/** Id de la techno si la session est un quiz de techno, sinon null. */
+export const techOfQuiz = (themeId: string) => (themeId.startsWith(TECH_PREFIX) ? themeId.slice(TECH_PREFIX.length) : null);
 
 export const SESSION_SIZE = 10;
 export const MASTERY_STREAK = 2; // avec 2 choix, une seule bonne réponse peut être un coup de chance
@@ -111,6 +118,9 @@ export const LEVELS = [
   { xp: 2500, name: 'Staff' },
   { xp: 4000, name: 'Principal' },
   { xp: 6000, name: 'Architecte' },
+  { xp: 9000, name: 'Distinguished' },
+  { xp: 13000, name: 'Fellow' },
+  { xp: 18000, name: 'Légende' },
 ];
 
 export interface Level {
@@ -167,6 +177,9 @@ export interface BadgeStats {
   masteredThemes: number;
   playedThemes: number;
   themes: number;
+  masteredTechs: number;
+  playedTechs: number;
+  techQuizzes: number;
   bestScenario: number;
   fiches: number;
 }
@@ -197,22 +210,58 @@ export const BADGES: { id: string; icon: string; label: string; description: str
     description: 'Jouer au moins une session dans chaque thème',
     test: (s) => s.themes > 0 && s.playedThemes >= s.themes,
   },
+  {
+    id: 'expert',
+    icon: '🔧',
+    label: 'Expert',
+    description: "Maîtriser toutes les questions du quiz d'une techno",
+    test: (s) => s.masteredTechs >= 1,
+  },
+  { id: 'explorateur', icon: '🗺️', label: 'Explorateur', description: 'Jouer le quiz de 10 technos différentes', test: (s) => s.playedTechs >= 10 },
+  { id: 'boite-a-outils', icon: '🧰', label: 'Boîte à outils', description: 'Maîtriser 10 technos', test: (s) => s.masteredTechs >= 10 },
+  {
+    id: 'encyclopedie',
+    icon: '📖',
+    label: 'Encyclopédie',
+    description: 'Maîtriser le quiz de toutes les technos',
+    test: (s) => s.techQuizzes > 0 && s.masteredTechs >= s.techQuizzes,
+  },
   { id: 'centurion', icon: '💯', label: 'Centurion', description: '100 bonnes réponses au total', test: (s) => s.correct >= 100 },
   { id: 'architecte', icon: '🏛', label: 'Architecte', description: 'Obtenir 90 ou plus à un scénario', test: (s) => s.bestScenario >= 90 },
   { id: 'curieux', icon: '📚', label: 'Curieux', description: 'Lire 20 fiches différentes', test: (s) => s.fiches >= 20 },
 ];
+
+export interface Mastery {
+  mastered: number;
+  total: number;
+  sessions: number;
+}
+
+/** Maîtrise d'un quiz : questions actuelles maîtrisées, et nombre de sessions jouées. */
+function mastery(quizId: string, questionIds: string[], sessions: QuizSession[]): Mastery {
+  const stats = questionStats(sessions, quizId);
+  return {
+    mastered: questionIds.filter((id) => isMastered(stats[id])).length,
+    total: questionIds.length,
+    sessions: sessions.filter((s) => s.themeId === quizId).length,
+  };
+}
+
+const complete = (m: Mastery) => m.total > 0 && m.mastered === m.total;
 
 export interface Progress {
   xp: number;
   xpBySource: { quiz: number; scenarios: number; fiches: number };
   level: Level;
   streak: { current: number; best: number; today: boolean };
-  themes: Record<string, { mastered: number; total: number; sessions: number }>;
+  themes: Record<string, Mastery>;
+  techs: Record<string, Mastery>; // par id de fiche
   unlocked: string[]; // ids des badges dont la condition est remplie
   confusions: { techs: [string, string]; count: number }[]; // paires de technos confondues, les plus fréquentes d'abord
 }
 
-export function computeProgress(history: History, themes: Theme[], now: Date): Progress {
+/** themes : les thèmes du quiz ; techQuizzes : les quiz de techno, avec l'id de leur fiche. */
+export function computeProgress(history: History, themes: Theme[], techQuizzes: Theme[], now: Date): Progress {
   const { quizSessions, attempts, viewedTechs } = history;
 
   const bestByScenario = new Map<string, number>();
@@ -224,18 +273,9 @@ export function computeProgress(history: History, themes: Theme[], now: Date): P
   };
   const xp = xpBySource.quiz + xpBySource.scenarios + xpBySource.fiches;
 
-  const themeProgress = Object.fromEntries(
-    themes.map((t) => {
-      const stats = questionStats(quizSessions, t.id);
-      return [
-        t.id,
-        {
-          mastered: t.questionIds.filter((id) => isMastered(stats[id])).length,
-          total: t.questionIds.length,
-          sessions: quizSessions.filter((s) => s.themeId === t.id).length,
-        },
-      ];
-    }),
+  const themeProgress = Object.fromEntries(themes.map((t) => [t.id, mastery(t.id, t.questionIds, quizSessions)]));
+  const techProgress = Object.fromEntries(
+    techQuizzes.map((t) => [t.id, mastery(techQuizId(t.id), t.questionIds, quizSessions)]),
   );
 
   const streak = dayStreak([...quizSessions.map((s) => s.playedAt), ...attempts.map((a) => a.playedAt)], now);
@@ -246,15 +286,19 @@ export function computeProgress(history: History, themes: Theme[], now: Date): P
     bestCombo: Math.max(0, ...quizSessions.map((s) => bestCombo(s.answers))),
     perfectSessions: quizSessions.filter((s) => s.answers.length >= SESSION_SIZE && s.answers.every(isCorrect)).length,
     bestStreak: streak.best,
-    masteredThemes: Object.values(themeProgress).filter((t) => t.total > 0 && t.mastered === t.total).length,
+    masteredThemes: Object.values(themeProgress).filter(complete).length,
     playedThemes: Object.values(themeProgress).filter((t) => t.sessions > 0).length,
     themes: themes.length,
+    masteredTechs: Object.values(techProgress).filter(complete).length,
+    playedTechs: Object.values(techProgress).filter((t) => t.sessions > 0).length,
+    techQuizzes: techQuizzes.length,
     bestScenario: Math.max(0, ...bestByScenario.values()),
     fiches: viewedTechs.length,
   };
 
+  // Seuls les thèmes opposent deux technos : les réponses d'un quiz de techno sont du texte.
   const pairs = new Map<string, number>();
-  for (const a of answers) {
+  for (const a of quizSessions.filter((s) => !techOfQuiz(s.themeId)).flatMap((s) => s.answers)) {
     if (isCorrect(a)) continue;
     const key = [a.chosenTech, a.correctTech].sort().join('|');
     pairs.set(key, (pairs.get(key) ?? 0) + 1);
@@ -270,6 +314,7 @@ export function computeProgress(history: History, themes: Theme[], now: Date): P
     level: levelOf(xp),
     streak,
     themes: themeProgress,
+    techs: techProgress,
     unlocked: BADGES.filter((b) => b.test(stats)).map((b) => b.id),
     confusions,
   };

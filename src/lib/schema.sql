@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS quiz_sessions (
 
 -- Une ligne par question posée, dans l'ordre de la session (position) : le combo en dépend.
 -- Bonne réponse <=> chosen_tech = correct_tech.
+-- Quiz d'une techno : theme_id = 'tech:<id de la fiche>', chosen_tech et correct_tech contiennent le texte des options.
 CREATE TABLE IF NOT EXISTS quiz_answers (
   session_id   INTEGER NOT NULL REFERENCES quiz_sessions (id) ON DELETE CASCADE,
   position     INTEGER NOT NULL,

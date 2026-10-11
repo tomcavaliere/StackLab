@@ -29,7 +29,7 @@ $env:PATH = "$PWD\.venv\Scripts;$env:PATH"; npm ci
 | Commande | Effet |
 |---|---|
 | `npm run dev` | Serveur local sur http://localhost:4321 |
-| `npm run build` | Vérifie les sections des fiches (`scripts/check-sections.mjs`), puis `astro build` (valide tout le contenu) |
+| `npm run build` | Vérifie les sections des fiches et les quiz de techno (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
 | `npm test` | Tests Vitest (scoring, récompenses) |
 | `sqlite3 data/stacklab.db` | Interroger la progression |
 
@@ -37,12 +37,13 @@ $env:PATH = "$PWD\.venv\Scripts;$env:PATH"; npm ci
 
 ```
 src/
-  content.config.ts      schémas Zod des 4 collections + ref() (références vérifiées)
+  content.config.ts      schémas Zod des 5 collections + ref() (références vérifiées)
   content/
     techs/<id>.md        fiches technos
     scenarios/<id>.md    scénarios du jeu
     companies/<id>.md    stacks d'entreprises
     quiz/<id>.md         thèmes du quiz (questions à 2 technos)
+    tech-quiz/<id>.md    quiz d'une techno (QCM en texte), id = id de sa fiche
   lib/
     taxonomy.ts          vocabulaires contrôlés (kinds, couches, verdicts…) : slug -> libellé
     db.ts, schema.sql    SQLite : ouverture paresseuse, schéma (IF NOT EXISTS) appliqué à chaque ouverture
@@ -54,24 +55,25 @@ src/
     Game.tsx             îlot du jeu : pioche, plateau React Flow, résultats, lecture des animations
     flows.ts             étapes des animations (requête utilisateur, flux de données), fonction pure
   components/quiz/
-    Quiz.tsx             îlot du quiz : session de 10 questions, clavier, feedback, bilan (XP, niveau, badges)
+    Quiz.tsx             îlot du quiz, pour les thèmes (2 technos) comme pour les technos (QCM) : session de 10 questions, clavier, feedback, bilan
   pages/
-    fiches/              liste filtrable + page fiche (enregistre une vue)
+    fiches/              liste filtrable + page fiche (enregistre une vue, lien vers son quiz avec la maîtrise)
     jouer/               liste des scénarios + page de partie (îlot Game, debrief)
     entreprises/         liste + page entreprise (sources, ⚠ > 3 ans)
-    quiz/                liste des thèmes (barres de maîtrise) + page de session (îlot Quiz)
-    progression.astro    niveau, série, badges, maîtrise, confusions, activité (rendue à la demande)
+    quiz/                liste des thèmes et des technos (barres de maîtrise) + page de session d'un thème (îlot Quiz)
+    quiz/techno/[id]     page de session du quiz d'une techno (îlot Quiz)
+    progression.astro    niveau, série, badges, maîtrise par thème et par techno, confusions, activité (rendue à la demande)
     api/views.ts         POST { techId } : enregistre une vue · GET : vues par fiche
     api/attempts.ts      POST { scenarioId, score, cards: [{ techId, layer, verdict }] } : enregistre une partie · GET : meilleur score par scénario
     api/quiz.ts          POST { themeId, answers: [{ questionId, chosenTech, correctTech }] } : enregistre une session · GET ?theme= : stats par question
-    api/progress.ts      GET : XP, niveau, série, maîtrise par thème, badges, confusions
+    api/progress.ts      GET : XP, niveau, série, maîtrise par thème et par techno, badges, confusions
   layouts/Base.astro
-scripts/check-sections.mjs   sections imposées du corps des fiches (Zod ne voit que le frontmatter)
+scripts/check-content.mjs    ce que Zod ne voit pas : sections imposées des fiches, quiz de techno sans fiche (erreur), fiche sans quiz (avertissement)
 data/stacklab.db             base locale, ignorée par git
 ```
 
 - **Le contenu est de la donnée** : un fichier Markdown + frontmatter par entité, validé au build. Ajouter une techno, c'est ajouter un fichier, sans toucher au code.
-- **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`, `quiz_sessions`, `quiz_answers`, `badges`), jamais de contenu. Les ids de tech, de scénario, de thème et de question y sont des ids de contenu, sans clé étrangère possible.
+- **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`, `quiz_sessions`, `quiz_answers`, `badges`), jamais de contenu. Les ids de tech, de scénario, de thème et de question y sont des ids de contenu, sans clé étrangère possible. Une session du quiz d'une techno est une session de quiz comme une autre, avec `theme_id = 'tech:<id de la fiche>'` et le texte des options dans `chosen_tech` / `correct_tech`.
 - **Pages prérendues** ; seuls les endpoints `src/pages/api/*` et `/progression` (`export const prerender = false`) tournent côté serveur (adapter `@astrojs/node`). Ailleurs, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
 - **Scoring** (phase 2) : fonction pure dans `src/lib/scoring.ts`, indépendante de l'UI, testée avec Vitest. Calculée côté client, le résultat est envoyé tel quel à `/api/attempts`.
 - **Récompenses** (phase 6) : fonctions pures dans `src/lib/rewards.ts`, testées avec Vitest, partagées par le serveur et l'îlot Quiz. Tout est recalculé depuis l'historique brut ; seuls les badges débloqués sont stockés (avec leur date, sans régression possible).
@@ -108,9 +110,10 @@ data/stacklab.db             base locale, ignorée par git
 
 3. Écrire le corps avec exactement ces 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`. Les sections « Alternatives » et « S'intègre avec » sont générées depuis le frontmatter.
 4. **Si `layers` n'est pas vide**, ajouter un verdict pour la fiche dans chaque scénario dont les couches requises ou optionnelles croisent les siennes. Sans verdict, la carte sort « non évaluée » (grise, hors score) dans ce scénario.
-5. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
+5. Écrire son quiz : `src/content/tech-quiz/<id>.md` (procédure « quiz d'une techno » ci-dessous). Sans quiz, la fiche fonctionne, mais le build l'avertit.
+6. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
 
-La fiche apparaît alors dans la liste des fiches et, si `layers` n'est pas vide, dans la pioche du jeu.
+La fiche apparaît alors dans la liste des fiches, dans la liste des quiz si elle a le sien, et, si `layers` n'est pas vide, dans la pioche du jeu.
 
 ## Procédure : ajouter un scénario
 
@@ -152,16 +155,36 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 4. Viser au moins une dizaine de questions par thème : une session en pose 10.
 5. `npm run build` : il échoue si une tech n'existe pas, si un id est en double ou si `decoy` = `answer`.
 
+## Procédure : écrire ou compléter le quiz d'une techno
+
+Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l'utiliser ou l'éviter), pas sur le choix entre deux technos : c'est le rôle des thèmes.
+
+1. Créer `src/content/tech-quiz/<id>.md`, où `<id>` est l'id de la fiche (frontmatter seul, une clé `questions`, au moins 5 ; viser 10, une session en pose 10).
+2. Chaque question :
+   ```yaml
+   - id: classement              # kebab-case, unique dans le fichier ; pas un mot réservé YAML (null, true, yes, on…)
+     prompt: "Quelle structure Redis utiliser pour un classement de joueurs ?"   # se comprend seul : les questions sont mélangées
+     answer: "Un ensemble trié (sorted set)"
+     decoys:                     # 1 à 3 leurres, faux mais plausibles, tous différents de answer
+       - "Une liste"
+       - "Un hash"
+     why: "…"                    # 1 à 2 phrases appuyées sur la fiche : pourquoi la réponse, et pourquoi pas les leurres
+   ```
+3. **La bonne réponse ne doit pas se reconnaître à sa longueur** : sinon, choisir l'option la plus longue suffit pour réussir. Donner aux leurres la même précision que la réponse (une justification fausse mais crédible) ; sur l'ensemble d'un quiz, la bonne réponse ne doit être la plus longue qu'environ une fois sur trois.
+4. Même règle que pour les thèmes : **ne jamais renommer ni réutiliser un `id` de question**. Le texte des options, lui, peut être corrigé : la justesse d'une réponse passée est enregistrée telle quelle.
+5. `npm run build` : il échoue si le fichier ne correspond à aucune fiche, si un id est en double ou si une option est en double.
+
 ### Règles de récompense (phase 6, `src/lib/rewards.ts`)
 
 - **XP du quiz** : 10 par bonne réponse + 2 × (combo − 1), bonus plafonné à +10 (combo = bonnes réponses consécutives dans la session). Session sans faute d'au moins 5 questions : +30.
 - **XP des scénarios** : somme du **meilleur** score de chaque scénario (rejouer sans battre son record ne rapporte rien).
 - **XP des fiches** : 5 par fiche distincte consultée.
-- **Niveaux** : Stagiaire 0 · Junior 150 · Confirmé 400 · Senior 800 · Lead 1500 · Staff 2500 · Principal 4000 · Architecte 6000.
+- **Niveaux** : Stagiaire 0 · Junior 150 · Confirmé 400 · Senior 800 · Lead 1500 · Staff 2500 · Principal 4000 · Architecte 6000 · Distinguished 9000 · Fellow 13000 · Légende 18000 (les trois derniers depuis les quiz de techno, qui multiplient l'XP disponible).
 - **Série** : jours locaux consécutifs avec au moins une session de quiz ou une partie de scénario ; elle reste en vie si l'on a joué la veille.
-- **Maîtrise** : une question est maîtrisée après 2 bonnes réponses d'affilée (avec 2 choix, une seule peut être un coup de chance) ; une erreur remet le compteur à 0.
+- **Maîtrise** : une question est maîtrisée après 2 bonnes réponses d'affilée (avec 2 choix, une seule peut être un coup de chance) ; une erreur remet le compteur à 0. Un thème ou une techno est maîtrisé quand toutes ses questions actuelles le sont.
+- **Quiz de techno** : mêmes règles d'XP, de combo, de série et de maîtrise que les thèmes ; ils comptent pour les badges généraux (sessions, combo, sans faute, centurion). Les confusions ne portent que sur les thèmes (leurs réponses sont des technos).
 - **Choix des questions** : ratées, puis jamais vues, puis en cours, puis maîtrisées (la plus anciennement vue d'abord dans chaque groupe), 10 au maximum, puis mélangées.
-- **Badges** : liste `BADGES`, chacun avec un prédicat sur des statistiques. Un badge atteint est enregistré dans `badges` avec sa date et ne se reperd plus.
+- **Badges** : liste `BADGES`, chacun avec un prédicat sur des statistiques. Un badge atteint est enregistré dans `badges` avec sa date et ne se reperd plus. Badges des technos : Expert (1 techno maîtrisée), Explorateur (10 technos jouées), Boîte à outils (10 technos maîtrisées), Encyclopédie (toutes).
 
 ## Procédure : ajouter ou mettre à jour une stack d'entreprise (workflow de recherche)
 
@@ -198,6 +221,7 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
    sqlite3 -header -column data/stacklab.db "SELECT s.id, s.theme_id, s.played_at, a.position, a.question_id, a.chosen_tech, a.correct_tech FROM quiz_sessions s JOIN quiz_answers a ON a.session_id = s.id ORDER BY s.id DESC, a.position;"
    sqlite3 -header -column data/stacklab.db "SELECT * FROM badges;"
    ```
+8. **Chaque fiche a son quiz** : `npm run build` n'affiche aucun avertissement « Fiches sans quiz ». Une session de quiz de techno apparaît dans la requête du critère 7 avec `theme_id = tech:<id>`, et sa maîtrise sur la fiche, sur `/quiz` et sur `/progression`.
 
 ## Avancement
 
@@ -209,3 +233,4 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 - [x] Phase 5 : stacks d'entreprises (Airbnb, Instagram) + mode devine
 - [x] Phase 6 : quiz par thème (4 thèmes, 49 questions) + système de récompense (XP, niveaux, série, maîtrise, badges, page Progression)
 - [x] Phase 7 : contenu enrichi : 20 fiches (dont 5 langages et 4 concepts d'API), 3 thèmes de quiz (Frameworks web & mobile, Langages, API & communication), 111 questions au total, verdicts des nouvelles cartes dans les 5 scénarios
+- [x] Phase 8 : un quiz par techno (68 quiz, 686 questions en QCM), maîtrise par techno sur les fiches, `/quiz` et `/progression`, 4 badges et 3 niveaux de plus

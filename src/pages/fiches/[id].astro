@@ -14,6 +14,7 @@ const { Content } = await render(tech);
 const all = await getCollection('techs');
 const byId = new Map(all.map((t) => [t.id, t]));
 const companies = await getCollection('companies');
+const quiz = (await getCollection('techQuiz')).find((q) => q.id === tech.id);
 const d = tech.data;
 
 type Link = { tech: CollectionEntry<'techs'>; note: string };
@@ -59,6 +60,17 @@ const link = 'text-blue-700 underline';
         {'●'.repeat(d.difficulty)}{'○'.repeat(3 - d.difficulty)}
         {DIFFICULTIES[d.difficulty]}
       </span>
+      {
+        quiz && (
+          <a
+            href={`/quiz/techno/${tech.id}`}
+            class="ml-auto self-center rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            🎯 Quiz {d.name}
+            <span data-quiz-mastery class="ml-1 text-xs font-normal opacity-80">{quiz.data.questions.length} questions</span>
+          </a>
+        )
+      }
     </header>
 
     <p class="mt-3 max-w-3xl rounded border-l-4 border-blue-400 bg-white px-4 py-3 text-lg">
@@ -168,4 +180,14 @@ const link = 'text-blue-700 underline';
 <script>
   const techId = document.querySelector<HTMLElement>('[data-tech-id]')!.dataset.techId;
   fetch('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ techId }) });
+
+  const mastery = document.querySelector('[data-quiz-mastery]');
+  if (mastery) {
+    fetch('/api/progress')
+      .then((r) => r.json())
+      .then(({ techs }: { techs: Record<string, { mastered: number; total: number; sessions: number }> }) => {
+        const t = techs[techId!];
+        if (t?.sessions) mastery.textContent = t.mastered === t.total ? '✓ maîtrisée' : `${t.mastered} / ${t.total} maîtrisées`;
+      });
+  }
 </script>

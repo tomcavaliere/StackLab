@@ -11,18 +11,20 @@ import {
   type QuizAnswer,
 } from '../../lib/rewards';
 
+// Deux formats : thème (answer et decoys sont des ids de techno, un seul leurre) ou quiz d'une techno (QCM en texte).
 export interface QuizQuestion {
   id: string;
   prompt: string;
   answer: string;
-  decoy: string;
+  decoys: string[];
   why: string;
 }
 
 interface Props {
-  themeId: string;
+  themeId: string; // id du thème, ou techQuizId(id de la fiche)
   questions: QuizQuestion[];
-  techNames: Record<string, string>;
+  techNames: Record<string, string>; // noms des technos citées ; une option absente de la table s'affiche telle quelle
+  techId?: string; // quiz d'une techno : options en texte, feedback qui renvoie vers sa fiche
 }
 
 /** Réponse de POST /api/quiz. */
@@ -35,7 +37,7 @@ interface SaveResult {
 }
 
 type Phase = 'loading' | 'question' | 'feedback' | 'done';
-type Round = { q: QuizQuestion; options: [string, string] };
+type Round = { q: QuizQuestion; options: string[] };
 
 function shuffle<T>(items: T[]) {
   const out = [...items];
@@ -53,10 +55,10 @@ function status(s: QuestionStat | undefined) {
   return { label: 'En cours', style: 'bg-amber-100 text-amber-800' };
 }
 
-const KEYS = ['← ou 1', '→ ou 2'];
+const keyHint = (i: number, count: number) => (count === 2 ? ['← ou 1', '→ ou 2'][i] : String(i + 1));
 const button = 'rounded px-4 py-2 font-medium disabled:opacity-40';
 
-export default function Quiz({ themeId, questions, techNames }: Props) {
+export default function Quiz({ themeId, questions, techNames, techId }: Props) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [stats, setStats] = useState<Record<string, QuestionStat>>({});
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -71,19 +73,17 @@ export default function Quiz({ themeId, questions, techNames }: Props) {
   const round = rounds[index];
   const last = answers[index];
 
-  // Nouvelle session : questions ratées et jamais vues d'abord (pickQuestions), ordre et côtés tirés au hasard.
+  // Nouvelle session : questions ratées et jamais vues d'abord (pickQuestions), ordre des questions et des options tiré au hasard.
   async function start() {
     setPhase('loading');
     setError('');
     try {
-      const res = await fetch(`/api/quiz?theme=${themeId}`);
+      const res = await fetch(`/api/quiz?theme=${encodeURIComponent(themeId)}`);
       if (!res.ok) throw new Error(await res.text());
       const s: Record<string, QuestionStat> = await res.json();
       const picked = shuffle(pickQuestions(shuffle(questions), s, SESSION_SIZE));
       setStats(s);
-      setRounds(
-        picked.map((q) => ({ q, options: Math.random() < 0.5 ? [q.answer, q.decoy] : [q.decoy, q.answer] })),
-      );
+      setRounds(picked.map((q) => ({ q, options: shuffle([q.answer, ...q.decoys]) })));
       setIndex(0);
       setAnswers([]);
       setCombo(0);
@@ -99,7 +99,7 @@ export default function Quiz({ themeId, questions, techNames }: Props) {
     start();
   }, []);
 
-  function choose(option: 0 | 1) {
+  function choose(option: number) {
     const chosen = round.options[option];
     const correct = chosen === round.q.answer;
     const nextCombo = correct ? combo + 1 : 0;
@@ -133,8 +133,11 @@ export default function Quiz({ themeId, questions, techNames }: Props) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (phase === 'question') {
-        if (e.key === 'ArrowLeft' || e.key === '1') choose(0);
-        if (e.key === 'ArrowRight' || e.key === '2') choose(1);
+        const n = round.options.length;
+        const key = Number(e.key);
+        if (Number.isInteger(key) && key >= 1 && key <= n) choose(key - 1);
+        if (n === 2 && e.key === 'ArrowLeft') choose(0);
+        if (n === 2 && e.key === 'ArrowRight') choose(1);
       } else if (phase === 'feedback' && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
         next();
@@ -148,11 +151,13 @@ export default function Quiz({ themeId, questions, techNames }: Props) {
   if (phase === 'loading') return <p className="text-slate-500">Chargement…</p>;
   if (phase === 'done') return <Summary {...{ rounds, answers, saved, error, name, start }} />;
 
+  const fiches = techId ? [techId] : [round.q.answer, ...round.q.decoys];
+
   const st = status(stats[round.q.id]);
-  const optionStyle = (tech: string) => {
+  const optionStyle = (option: string) => {
     if (phase === 'question') return 'border-slate-300 bg-white hover:border-blue-500 hover:bg-blue-50 cursor-pointer';
-    if (tech === round.q.answer) return 'border-emerald-500 bg-emerald-50';
-    if (tech === last.chosenTech) return 'border-red-500 bg-red-50';
+    if (option === round.q.answer) return 'border-emerald-500 bg-emerald-50';
+    if (option === last.chosenTech) return 'border-red-500 bg-red-50';
     return 'border-slate-200 bg-white opacity-50';
   };
 
@@ -179,22 +184,39 @@ export default function Quiz({ themeId, questions, techNames }: Props) {
       <div className="mt-4 rounded border border-slate-200 bg-white px-6 py-5">
         <span className={`rounded px-1.5 py-0.5 text-xs ${st.style}`}>{st.label}</span>
         <p className="mt-3 text-2xl leading-snug font-semibold">{round.q.prompt}</p>
-        <p className="mt-1 text-sm text-slate-500">Quelle techno choisir ?</p>
+        {!techId && <p className="mt-1 text-sm text-slate-500">Quelle techno choisir ?</p>}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        {round.options.map((tech, i) => (
-          <button
-            key={tech}
-            type="button"
-            disabled={phase !== 'question'}
-            onClick={() => choose(i as 0 | 1)}
-            className={`flex h-28 flex-col items-center justify-center rounded-lg border-2 text-xl font-semibold transition-colors ${optionStyle(tech)}`}
-          >
-            {name(tech)}
-            {phase === 'question' && <span className="mt-1 text-xs font-normal text-slate-400">{KEYS[i]}</span>}
-          </button>
-        ))}
+      <div className={techId ? 'mt-4 space-y-3' : 'mt-4 grid grid-cols-2 gap-4'}>
+        {round.options.map((option, i) =>
+          techId ? (
+            <button
+              key={option}
+              type="button"
+              disabled={phase !== 'question'}
+              onClick={() => choose(i)}
+              className={`flex w-full items-center gap-4 rounded-lg border-2 px-5 py-4 text-left text-lg transition-colors ${optionStyle(option)}`}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-100 text-sm font-semibold text-slate-500">
+                {i + 1}
+              </span>
+              {option}
+            </button>
+          ) : (
+            <button
+              key={option}
+              type="button"
+              disabled={phase !== 'question'}
+              onClick={() => choose(i)}
+              className={`flex h-28 flex-col items-center justify-center rounded-lg border-2 text-xl font-semibold transition-colors ${optionStyle(option)}`}
+            >
+              {name(option)}
+              {phase === 'question' && (
+                <span className="mt-1 text-xs font-normal text-slate-400">{keyHint(i, round.options.length)}</span>
+              )}
+            </button>
+          ),
+        )}
       </div>
 
       {phase === 'feedback' && (
@@ -213,12 +235,12 @@ export default function Quiz({ themeId, questions, techNames }: Props) {
                 {combo >= 3 && <span className="text-orange-600">🔥 {combo} d'affilée</span>}
               </>
             ) : (
-              <span className="text-red-700">✗ C'était {name(round.q.answer)}</span>
+              <span className="text-red-700">{techId ? '✗ Raté : la bonne réponse est en vert' : `✗ C'était ${name(round.q.answer)}`}</span>
             )}
           </p>
           <p className="mt-2 text-slate-800">{round.q.why}</p>
           <p className="mt-2 flex items-center gap-4 text-sm">
-            {[round.q.answer, round.q.decoy].map((id) => (
+            {fiches.map((id) => (
               <a key={id} href={`/fiches/${id}`} target="_blank" className="text-blue-700 underline">
                 Fiche {name(id)} ↗
               </a>
@@ -251,7 +273,7 @@ function Summary({
   const good = answers.filter(isCorrect).length;
   const perfect = good === answers.length && answers.length >= XP.perfectMin;
   const tone = good / answers.length >= 0.8 ? 'text-emerald-600' : good / answers.length >= 0.5 ? 'text-amber-600' : 'text-red-600';
-  const mistakes = rounds.filter((r, i) => !isCorrect(answers[i]));
+  const mistakes = rounds.map((r, i) => ({ r, a: answers[i] })).filter(({ a }) => !isCorrect(a));
   const level = saved?.level;
   const width = saved && saved.level.next ? (100 * (saved.xp - saved.level.floor)) / (saved.level.next - saved.level.floor) : 100;
 
@@ -306,13 +328,12 @@ function Summary({
         <div className="rounded bg-white px-5 py-4">
           <h2 className="font-semibold">À revoir : elles seront reposées en priorité à la prochaine session</h2>
           <ul className="mt-2 space-y-3 text-sm">
-            {mistakes.map((r) => (
+            {mistakes.map(({ r, a }) => (
               <li key={r.q.id}>
                 <p className="font-medium">{r.q.prompt}</p>
-                <p>
-                  <span className="text-emerald-700">{name(r.q.answer)}</span>, pas{' '}
-                  <span className="text-red-700">{name(r.q.decoy)}</span>. <span className="text-slate-600">{r.q.why}</span>
-                </p>
+                <p className="text-emerald-700">✓ {name(r.q.answer)}</p>
+                <p className="text-red-700">✗ {name(a.chosenTech)}</p>
+                <p className="text-slate-600">{r.q.why}</p>
               </li>
             ))}
           </ul>
@@ -324,7 +345,7 @@ function Summary({
           Rejouer
         </button>
         <a href="/quiz" className={`${button} bg-slate-200 hover:bg-slate-300`}>
-          Autres thèmes
+          Autres quiz
         </a>
         <a href="/progression" className={`${button} bg-slate-200 hover:bg-slate-300`}>
           Ma progression

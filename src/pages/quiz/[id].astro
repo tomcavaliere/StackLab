@@ -12,8 +12,8 @@ const { theme } = Astro.props;
 const techs = await getCollection('techs');
 
 // L'îlot reçoit des ids en clair (les références Astro sont des { id, collection }) et les noms des technos citées.
-const questions: QuizQuestion[] = theme.data.questions.map((q) => ({ ...q, answer: q.answer.id, decoy: q.decoy.id }));
-const cited = new Set(questions.flatMap((q) => [q.answer, q.decoy]));
+const questions: QuizQuestion[] = theme.data.questions.map(({ decoy, ...q }) => ({ ...q, answer: q.answer.id, decoys: [decoy.id] }));
+const cited = new Set(questions.flatMap((q) => [q.answer, ...q.decoys]));
 const techNames = Object.fromEntries(techs.filter((t) => cited.has(t.id)).map((t) => [t.id, t.data.name]));
 ---
 

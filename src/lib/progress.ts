@@ -42,8 +42,12 @@ export interface ProgressView extends Omit<Progress, 'unlocked'> {
 
 /** Progression actuelle. Enregistre au passage les badges dont la condition vient d'être remplie. */
 export async function getProgress(): Promise<ProgressView> {
-  const themes = (await getCollection('quiz')).map((t) => ({ id: t.id, questionIds: t.data.questions.map((q) => q.id) }));
-  const { unlocked, ...progress } = computeProgress(loadHistory(), themes, new Date());
+  const toTheme = (t: { id: string; data: { questions: { id: string }[] } }) => ({
+    id: t.id,
+    questionIds: t.data.questions.map((q) => q.id),
+  });
+  const [themes, techQuizzes] = await Promise.all([getCollection('quiz'), getCollection('techQuiz')]);
+  const { unlocked, ...progress } = computeProgress(loadHistory(), themes.map(toTheme), techQuizzes.map(toTheme), new Date());
 
   const db = getDb();
   const insert = db.prepare('INSERT OR IGNORE INTO badges (badge_id) VALUES (?)');

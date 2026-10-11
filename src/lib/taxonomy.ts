@@ -25,7 +25,7 @@ export const LAYERS = {
   'stockage-analytique': 'Stockage analytique',
   'traitement-data': 'Traitement data',
   orchestration: 'Orchestration',
-  ml: 'ML',
+  ml: 'ML / IA',
   'conteneurs-infra': 'Conteneurs / infra',
   cloud: 'Cloud',
   'ci-cd': 'CI/CD',
@@ -40,7 +40,8 @@ export const SCENARIO_TYPES = {
   'app-mobile': 'App mobile',
   logiciel: 'Logiciel',
   'plateforme-data': 'Plateforme data',
-  ml: 'ML',
+  'ia-generative': 'IA générative',
+  ml: 'Machine learning',
 } as const;
 
 // Verdicts écrits dans les scénarios. Le scoring y ajoute « non-evalue » (carte sans verdict écrit).

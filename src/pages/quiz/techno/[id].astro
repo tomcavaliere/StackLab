@@ -1,0 +1,32 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import Base from '../../../layouts/Base.astro';
+import Quiz from '../../../components/quiz/Quiz';
+import { techQuizId } from '../../../lib/rewards';
+
+export async function getStaticPaths() {
+  const quizzes = await getCollection('techQuiz');
+  return quizzes.map((quiz) => ({ params: { id: quiz.id }, props: { quiz } }));
+}
+
+const { quiz } = Astro.props;
+// Vérifié au build par scripts/check-content.mjs ; en dev, une erreur explicite plutôt qu'une page cassée.
+const tech = await getEntry('techs', quiz.id);
+if (!tech) throw new Error(`src/content/tech-quiz/${quiz.id}.md : aucune fiche src/content/techs/${quiz.id}.md`);
+---
+
+<Base title={`Quiz · ${tech.data.name}`}>
+  <a href="/quiz" class="text-sm text-slate-500 hover:text-blue-700">← Quiz</a>
+  <h1 class="mt-2 text-2xl font-bold">Quiz {tech.data.name}</h1>
+  <p class="mt-1 mb-6 max-w-3xl text-slate-600">
+    {tech.data.summary}
+    <a href={`/fiches/${tech.id}`} target="_blank" class="text-blue-700 underline">Relire la fiche ↗</a>
+  </p>
+  <Quiz
+    client:only="react"
+    themeId={techQuizId(tech.id)}
+    questions={quiz.data.questions}
+    techNames={{ [tech.id]: tech.data.name }}
+    techId={tech.id}
+  />
+</Base>

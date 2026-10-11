@@ -111,8 +111,20 @@ const companies = defineCollection({
   }),
 });
 
-// Un thème de quiz : des questions courtes, chacune avec 2 technos dont une seule est la bonne.
 // L'id d'une question identifie son historique en base : ne jamais le renommer.
+const questionId = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'id de question en kebab-case ASCII minuscule' });
+
+function checkUniqueIds(questions: { id: string }[], ctx: z.RefinementCtx) {
+  const seen = new Set<string>();
+  questions.forEach((q, i) => {
+    if (seen.has(q.id)) {
+      ctx.addIssue({ code: 'custom', path: ['questions', i, 'id'], message: `id de question "${q.id}" en double` });
+    }
+    seen.add(q.id);
+  });
+}
+
+// Un thème de quiz : des questions courtes, chacune avec 2 technos dont une seule est la bonne.
 const quiz = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/quiz' }),
   schema: z
@@ -122,7 +134,7 @@ const quiz = defineCollection({
       questions: z
         .array(
           z.strictObject({
-            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'id de question en kebab-case ASCII minuscule' }),
+            id: questionId,
             prompt: z.string(),
             answer: ref('techs'),
             decoy: ref('techs'),
@@ -132,12 +144,8 @@ const quiz = defineCollection({
         .min(5),
     })
     .superRefine((t, ctx) => {
-      const seen = new Set<string>();
+      checkUniqueIds(t.questions, ctx);
       t.questions.forEach((q, i) => {
-        if (seen.has(q.id)) {
-          ctx.addIssue({ code: 'custom', path: ['questions', i, 'id'], message: `id de question "${q.id}" en double` });
-        }
-        seen.add(q.id);
         if (q.answer.id === q.decoy.id) {
           ctx.addIssue({ code: 'custom', path: ['questions', i, 'decoy'], message: `"decoy" identique à "answer" (${q.answer.id})` });
         }
@@ -145,4 +153,32 @@ const quiz = defineCollection({
     }),
 });
 
-export const collections = { techs, scenarios, companies, quiz };
+// Le quiz d'une techno : src/content/tech-quiz/<id de la fiche>.md (l'existence de la fiche est vérifiée par
+// scripts/check-content.mjs). QCM sur la techno elle-même : une bonne réponse et 1 à 3 leurres, en texte libre.
+const techQuiz = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/tech-quiz' }),
+  schema: z
+    .strictObject({
+      questions: z
+        .array(
+          z.strictObject({
+            id: questionId,
+            prompt: z.string(),
+            answer: z.string(),
+            decoys: z.array(z.string()).min(1).max(3),
+            why: z.string(),
+          }),
+        )
+        .min(5),
+    })
+    .superRefine((t, ctx) => {
+      checkUniqueIds(t.questions, ctx);
+      t.questions.forEach((q, i) => {
+        if (new Set([q.answer, ...q.decoys]).size !== q.decoys.length + 1) {
+          ctx.addIssue({ code: 'custom', path: ['questions', i, 'decoys'], message: 'options en double (leurre identique à la réponse ou à un autre leurre)' });
+        }
+      });
+    }),
+});
+
+export const collections = { techs, scenarios, companies, quiz, techQuiz };

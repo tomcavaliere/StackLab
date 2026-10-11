@@ -7,6 +7,7 @@ import {
   pickQuestions,
   questionStats,
   sessionXp,
+  techQuizId,
   XP,
   type History,
   type QuizAnswer,
@@ -97,7 +98,8 @@ describe('progression', () => {
   it('niveaux par paliers', () => {
     expect(levelOf(0)).toMatchObject({ number: 1, name: 'Stagiaire', next: 150 });
     expect(levelOf(150)).toMatchObject({ number: 2, name: 'Junior', floor: 150 });
-    expect(levelOf(99999)).toMatchObject({ name: 'Architecte', next: null });
+    expect(levelOf(6000)).toMatchObject({ name: 'Architecte', next: 9000 });
+    expect(levelOf(99999)).toMatchObject({ name: 'Légende', next: null });
   });
 
   it('scénarios : seul le meilleur score compte ; fiches : une fois chacune', () => {
@@ -112,6 +114,7 @@ describe('progression', () => {
         viewedTechs: ['redis', 'kafka'],
       },
       themes,
+      [],
       now,
     );
     expect(p.xpBySource).toEqual({ quiz: 0, scenarios: 120, fiches: 2 * XP.fiche });
@@ -130,6 +133,7 @@ describe('progression', () => {
         ],
       },
       themes,
+      [],
       now,
     );
     expect(p.themes.bdd).toEqual({ mastered: 1, total: 2, sessions: 3 });
@@ -137,5 +141,35 @@ describe('progression', () => {
     expect(p.unlocked).toEqual(expect.arrayContaining(['premier-pas', 'en-rythme', 'sans-faute', 'serie-3', 'polyvalent']));
     expect(p.unlocked).not.toContain('specialiste');
     expect(p.unlocked).not.toContain('serie-7');
+  });
+
+  it('quiz de techno : maîtrise par techno, badges, hors confusions', () => {
+    // Réponses en texte : seule l'égalité chosen/correct compte.
+    const text = (questionId: string, ok: boolean): QuizAnswer => ({
+      questionId,
+      chosenTech: ok ? 'Un ensemble trié' : 'Un hash',
+      correctTech: 'Un ensemble trié',
+    });
+    const redis = (d: string, answers: QuizAnswer[]) => session(day(d), answers, techQuizId('redis'));
+    const techQuizzes = [
+      { id: 'redis', questionIds: ['a', 'b'] },
+      { id: 'kafka', questionIds: ['x'] },
+    ];
+    const history = (sessions: QuizSession[]): History => ({ ...empty, quizSessions: sessions });
+    const twoSessions = [redis('2026-10-09', [text('a', true), text('b', false)]), redis('2026-10-10', [text('a', true), text('b', true)])];
+
+    const p = computeProgress(history(twoSessions), themes, techQuizzes, now);
+    expect(p.techs).toEqual({ redis: { mastered: 1, total: 2, sessions: 2 }, kafka: { mastered: 0, total: 1, sessions: 0 } });
+    expect(p.themes.bdd.sessions).toBe(0);
+    expect(p.confusions).toEqual([]);
+    expect(p.xpBySource.quiz).toBe(sessionXp(twoSessions[0].answers) + sessionXp(twoSessions[1].answers));
+    expect(p.unlocked).toContain('premier-pas');
+    expect(p.unlocked).not.toContain('expert');
+
+    const after = computeProgress(history([...twoSessions, redis('2026-10-10', [text('b', true)])]), themes, techQuizzes, now);
+    expect(after.techs.redis.mastered).toBe(2);
+    expect(after.unlocked).toContain('expert');
+    expect(after.unlocked).not.toContain('encyclopedie');
+    expect(after.unlocked).not.toContain('polyvalent');
   });
 });
