@@ -7,5 +7,10 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   integrations: [react()],
   adapter: node({ mode: 'standalone' }),
-  vite: { plugins: [tailwindcss()] },
+  vite: {
+    // `astro build` (et `astro sync`) optimisent les dépendances en mode production. Avec un cache commun, ils écrasent
+    // celui d'un `astro dev` en cours, et les îlots React plantent (« _jsxDEV is not a function »). D'où un cache à part.
+    cacheDir: process.argv.includes('dev') ? 'node_modules/.vite' : 'node_modules/.vite-build',
+    plugins: [tailwindcss()],
+  },
 });
