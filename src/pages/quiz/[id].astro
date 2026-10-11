@@ -1,0 +1,25 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Quiz, { type QuizQuestion } from '../../components/quiz/Quiz';
+
+export async function getStaticPaths() {
+  const themes = await getCollection('quiz');
+  return themes.map((theme) => ({ params: { id: theme.id }, props: { theme } }));
+}
+
+const { theme } = Astro.props;
+const techs = await getCollection('techs');
+
+// L'îlot reçoit des ids en clair (les références Astro sont des { id, collection }) et les noms des technos citées.
+const questions: QuizQuestion[] = theme.data.questions.map((q) => ({ ...q, answer: q.answer.id, decoy: q.decoy.id }));
+const cited = new Set(questions.flatMap((q) => [q.answer, q.decoy]));
+const techNames = Object.fromEntries(techs.filter((t) => cited.has(t.id)).map((t) => [t.id, t.data.name]));
+---
+
+<Base title={`Quiz · ${theme.data.title}`}>
+  <a href="/quiz" class="text-sm text-slate-500 hover:text-blue-700">← Thèmes</a>
+  <h1 class="mt-2 text-2xl font-bold">{theme.data.title}</h1>
+  <p class="mt-1 mb-6 text-slate-600">{theme.data.description}</p>
+  <Quiz client:only="react" themeId={theme.id} questions={questions} techNames={techNames} />
+</Base>

@@ -1,0 +1,48 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { SESSION_SIZE } from '../../lib/rewards';
+
+const themes = (await getCollection('quiz')).sort((a, b) => a.data.title.localeCompare(b.data.title, 'fr'));
+---
+
+<Base title="Quiz">
+  <h1 class="text-2xl font-bold">Quiz</h1>
+  <p class="mt-1 text-slate-600">
+    Choisis un thème : {SESSION_SIZE} questions courtes, 2 technos à chaque fois, une seule est la bonne. Les questions ratées
+    reviennent en premier ; une question est maîtrisée après 2 bonnes réponses d'affilée.
+  </p>
+  <ul class="mt-6 grid grid-cols-2 gap-4">
+    {
+      themes.map((t) => (
+        <li data-theme={t.id}>
+          <a href={`/quiz/${t.id}`} class="flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400">
+            <span class="flex items-baseline justify-between gap-3">
+              <span class="text-lg font-semibold">{t.data.title}</span>
+              <span class="shrink-0 text-sm text-slate-500">{t.data.questions.length} questions</span>
+            </span>
+            <span class="text-sm text-slate-600">{t.data.description}</span>
+            <span class="mt-auto h-2 overflow-hidden rounded-full bg-slate-200">
+              <span data-bar class="block h-full w-0 rounded-full bg-emerald-500 transition-all duration-700" />
+            </span>
+            <span data-mastery class="text-sm text-slate-500">Jamais joué</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</Base>
+
+<script>
+  fetch('/api/progress')
+    .then((r) => r.json())
+    .then(({ themes }: { themes: Record<string, { mastered: number; total: number; sessions: number }> }) => {
+      for (const li of document.querySelectorAll<HTMLElement>('[data-theme]')) {
+        const t = themes[li.dataset.theme!];
+        if (!t?.sessions) continue;
+        li.querySelector<HTMLElement>('[data-bar]')!.style.width = `${(100 * t.mastered) / t.total}%`;
+        li.querySelector('[data-mastery]')!.textContent =
+          `${t.mastered} / ${t.total} maîtrisées · ${t.sessions} session${t.sessions > 1 ? 's' : ''}`;
+      }
+    });
+</script>

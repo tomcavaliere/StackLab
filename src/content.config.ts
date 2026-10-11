@@ -111,4 +111,38 @@ const companies = defineCollection({
   }),
 });
 
-export const collections = { techs, scenarios, companies };
+// Un thème de quiz : des questions courtes, chacune avec 2 technos dont une seule est la bonne.
+// L'id d'une question identifie son historique en base : ne jamais le renommer.
+const quiz = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/quiz' }),
+  schema: z
+    .strictObject({
+      title: z.string(),
+      description: z.string(),
+      questions: z
+        .array(
+          z.strictObject({
+            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: 'id de question en kebab-case ASCII minuscule' }),
+            prompt: z.string(),
+            answer: ref('techs'),
+            decoy: ref('techs'),
+            why: z.string(),
+          }),
+        )
+        .min(5),
+    })
+    .superRefine((t, ctx) => {
+      const seen = new Set<string>();
+      t.questions.forEach((q, i) => {
+        if (seen.has(q.id)) {
+          ctx.addIssue({ code: 'custom', path: ['questions', i, 'id'], message: `id de question "${q.id}" en double` });
+        }
+        seen.add(q.id);
+        if (q.answer.id === q.decoy.id) {
+          ctx.addIssue({ code: 'custom', path: ['questions', i, 'decoy'], message: `"decoy" identique à "answer" (${q.answer.id})` });
+        }
+      });
+    }),
+});
+
+export const collections = { techs, scenarios, companies, quiz };

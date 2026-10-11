@@ -30,41 +30,51 @@ $env:PATH = "$PWD\.venv\Scripts;$env:PATH"; npm ci
 |---|---|
 | `npm run dev` | Serveur local sur http://localhost:4321 |
 | `npm run build` | Vérifie les sections des fiches (`scripts/check-sections.mjs`), puis `astro build` (valide tout le contenu) |
-| `npm test` | Tests Vitest (scoring) |
+| `npm test` | Tests Vitest (scoring, récompenses) |
 | `sqlite3 data/stacklab.db` | Interroger la progression |
 
 ## Architecture
 
 ```
 src/
-  content.config.ts      schémas Zod des 3 collections + ref() (références vérifiées)
+  content.config.ts      schémas Zod des 4 collections + ref() (références vérifiées)
   content/
     techs/<id>.md        fiches technos
     scenarios/<id>.md    scénarios du jeu
     companies/<id>.md    stacks d'entreprises
+    quiz/<id>.md         thèmes du quiz (questions à 2 technos)
   lib/
     taxonomy.ts          vocabulaires contrôlés (kinds, couches, verdicts…) : slug -> libellé
-    db.ts, schema.sql    SQLite : ouverture paresseuse, schéma appliqué si la base n'existe pas
+    db.ts, schema.sql    SQLite : ouverture paresseuse, schéma (IF NOT EXISTS) appliqué à chaque ouverture
     scoring.ts (+ .test) score d'une partie, fonction pure
+    rewards.ts (+ .test) XP, niveaux, série, maîtrise, choix des questions, badges : fonctions pures
+    progress.ts          historique lu en base -> computeProgress, persistance des badges débloqués
     sources.ts           isOld() : source de plus de 3 ans
   components/game/
     Game.tsx             îlot du jeu : pioche, plateau React Flow, résultats, lecture des animations
     flows.ts             étapes des animations (requête utilisateur, flux de données), fonction pure
+  components/quiz/
+    Quiz.tsx             îlot du quiz : session de 10 questions, clavier, feedback, bilan (XP, niveau, badges)
   pages/
     fiches/              liste filtrable + page fiche (enregistre une vue)
     jouer/               liste des scénarios + page de partie (îlot Game, debrief)
     entreprises/         liste + page entreprise (sources, ⚠ > 3 ans)
+    quiz/                liste des thèmes (barres de maîtrise) + page de session (îlot Quiz)
+    progression.astro    niveau, série, badges, maîtrise, confusions, activité (rendue à la demande)
     api/views.ts         POST { techId } : enregistre une vue · GET : vues par fiche
     api/attempts.ts      POST { scenarioId, score, cards: [{ techId, layer, verdict }] } : enregistre une partie · GET : meilleur score par scénario
+    api/quiz.ts          POST { themeId, answers: [{ questionId, chosenTech, correctTech }] } : enregistre une session · GET ?theme= : stats par question
+    api/progress.ts      GET : XP, niveau, série, maîtrise par thème, badges, confusions
   layouts/Base.astro
 scripts/check-sections.mjs   sections imposées du corps des fiches (Zod ne voit que le frontmatter)
 data/stacklab.db             base locale, ignorée par git
 ```
 
 - **Le contenu est de la donnée** : un fichier Markdown + frontmatter par entité, validé au build. Ajouter une techno, c'est ajouter un fichier, sans toucher au code.
-- **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`), jamais de contenu. Les ids de tech et de scénario y sont des ids de contenu, sans clé étrangère possible.
-- **Pages prérendues** ; seuls les endpoints `src/pages/api/*` (`export const prerender = false`) tournent côté serveur (adapter `@astrojs/node`).
+- **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`, `quiz_sessions`, `quiz_answers`, `badges`), jamais de contenu. Les ids de tech, de scénario, de thème et de question y sont des ids de contenu, sans clé étrangère possible.
+- **Pages prérendues** ; seuls les endpoints `src/pages/api/*` et `/progression` (`export const prerender = false`) tournent côté serveur (adapter `@astrojs/node`). Ailleurs, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
 - **Scoring** (phase 2) : fonction pure dans `src/lib/scoring.ts`, indépendante de l'UI, testée avec Vitest. Calculée côté client, le résultat est envoyé tel quel à `/api/attempts`.
+- **Récompenses** (phase 6) : fonctions pures dans `src/lib/rewards.ts`, testées avec Vitest, partagées par le serveur et l'îlot Quiz. Tout est recalculé depuis l'historique brut ; seuls les badges débloqués sont stockés (avec leur date, sans régression possible).
 - **Jeu** (phase 3) : îlot React, diagramme et animation avec React Flow (`@xyflow/react`), drag HTML5 natif depuis la pioche. dnd-kit seulement si React Flow ne suffit pas.
 
 ## Conventions
@@ -75,7 +85,7 @@ data/stacklab.db             base locale, ignorée par git
 - **Vocabulaires** (kind, couches, type de scénario, verdict, type de source, confiance) : slugs ASCII dans les fichiers, libellés dans `taxonomy.ts`. En ajouter un modifie le code, c'est assumé.
 - **Tags** libres, en kebab-case ASCII. Réutiliser les tags existants avant d'en créer (`grep -h "^tags:" src/content/techs/*.md`).
 - **Exactitude** : aucun chiffre de performance inventé. En cas d'incertitude, l'écrire explicitement dans la fiche.
-- **SQLite** : pas d'outil de migration. Si `schema.sql` change, supprimer `data/stacklab.db` ; elle est recréée au premier appel d'API.
+- **SQLite** : pas d'outil de migration. `schema.sql` (`CREATE TABLE IF NOT EXISTS`) est appliqué à chaque ouverture : **ajouter une table** est automatique et garde l'historique ; **modifier une table existante** impose de supprimer `data/stacklab.db` (recréée au premier appel d'API, progression perdue).
 - **Code** : le minimum qui fait le travail, pas d'abstraction anticipée. Les messages d'erreur peuvent être orientés développeur.
 - **Git** : un commit par phase validée.
 
@@ -126,6 +136,32 @@ Verdict d'une carte posée, dans l'ordre :
 
 Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 100 × points / (3 × nombre de cartes évaluées). Puis −20 par couche requise vide, −`penalty` par anti-pattern déclenché. Le score est borné à [0, 100]. Plusieurs réponses valides sont possibles : jamais de comparaison à une réponse unique.
 
+## Procédure : ajouter un thème ou des questions de quiz
+
+1. Thème : créer `src/content/quiz/<id>.md` (frontmatter seul) avec `title`, `description` et au moins 5 `questions`. Questions : les ajouter à la liste du thème.
+2. Chaque question :
+   ```yaml
+   - id: sessions-qui-expirent   # kebab-case, unique dans le thème
+     prompt: "Stocker des sessions utilisateur qui expirent toutes seules"   # un besoin court, sans nommer la réponse
+     answer: redis               # id de fiche : la bonne réponse
+     decoy: postgresql           # id de fiche : un leurre plausible, différent de answer
+     why: "…"                    # 1 à 2 phrases appuyées sur les fiches : pourquoi l'une et pas l'autre
+   ```
+3. **Ne jamais renommer ni réutiliser un `id` de question** : il identifie l'historique en base (maîtrise, questions ratées). Pour changer le sens d'une question, en créer une nouvelle.
+4. Viser au moins une dizaine de questions par thème : une session en pose 10.
+5. `npm run build` : il échoue si une tech n'existe pas, si un id est en double ou si `decoy` = `answer`.
+
+### Règles de récompense (phase 6, `src/lib/rewards.ts`)
+
+- **XP du quiz** : 10 par bonne réponse + 2 × (combo − 1), bonus plafonné à +10 (combo = bonnes réponses consécutives dans la session). Session sans faute d'au moins 5 questions : +30.
+- **XP des scénarios** : somme du **meilleur** score de chaque scénario (rejouer sans battre son record ne rapporte rien).
+- **XP des fiches** : 5 par fiche distincte consultée.
+- **Niveaux** : Stagiaire 0 · Junior 150 · Confirmé 400 · Senior 800 · Lead 1500 · Staff 2500 · Principal 4000 · Architecte 6000.
+- **Série** : jours locaux consécutifs avec au moins une session de quiz ou une partie de scénario ; elle reste en vie si l'on a joué la veille.
+- **Maîtrise** : une question est maîtrisée après 2 bonnes réponses d'affilée (avec 2 choix, une seule peut être un coup de chance) ; une erreur remet le compteur à 0.
+- **Choix des questions** : ratées, puis jamais vues, puis en cours, puis maîtrisées (la plus anciennement vue d'abord dans chaque groupe), 10 au maximum, puis mélangées.
+- **Badges** : liste `BADGES`, chacun avec un prédicat sur des statistiques. Un badge atteint est enregistré dans `badges` avec sa date et ne se reperd plus.
+
 ## Procédure : ajouter ou mettre à jour une stack d'entreprise (workflow de recherche)
 
 À suivre quand l'utilisateur demande « ajoute / mets à jour la stack de X ».
@@ -156,6 +192,11 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
    ```
    sqlite3 -header -column data/stacklab.db "SELECT a.id, a.scenario_id, a.played_at, a.score, c.tech_id, c.layer, c.verdict FROM attempts a JOIN attempt_cards c ON c.attempt_id = a.id ORDER BY a.id DESC;"
    ```
+7. **Session de quiz enregistrée**, avec XP et badges à jour sur `/progression` :
+   ```
+   sqlite3 -header -column data/stacklab.db "SELECT s.id, s.theme_id, s.played_at, a.position, a.question_id, a.chosen_tech, a.correct_tech FROM quiz_sessions s JOIN quiz_answers a ON a.session_id = s.id ORDER BY s.id DESC, a.position;"
+   sqlite3 -header -column data/stacklab.db "SELECT * FROM badges;"
+   ```
 
 ## Avancement
 
@@ -165,3 +206,4 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 - [x] Phase 3 : jeu jouable (pioche, diagramme en couches, drag & drop, feedback, enregistrement)
 - [x] Phase 4 : animation des flux (requête utilisateur, flux de données)
 - [x] Phase 5 : stacks d'entreprises (Airbnb, Instagram) + mode devine
+- [x] Phase 6 : quiz par thème (4 thèmes, 49 questions) + système de récompense (XP, niveaux, série, maîtrise, badges, page Progression)

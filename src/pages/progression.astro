@@ -1,0 +1,177 @@
+---
+// Seule page rendue à la demande : elle lit la base à chaque visite.
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { getProgress, loadHistory } from '../lib/progress';
+import { isCorrect, sessionXp } from '../lib/rewards';
+
+export const prerender = false;
+
+const progress = await getProgress();
+const history = loadHistory();
+const [themes, scenarios, techs] = await Promise.all([
+  getCollection('quiz'),
+  getCollection('scenarios'),
+  getCollection('techs'),
+]);
+const themeTitle = new Map(themes.map((t) => [t.id, t.data.title]));
+const scenarioTitle = new Map(scenarios.map((s) => [s.id, s.data.title]));
+const techName = new Map(techs.map((t) => [t.id, t.data.name]));
+
+const { xp, xpBySource, level, streak } = progress;
+const levelWidth = level.next ? (100 * (xp - level.floor)) / (level.next - level.floor) : 100;
+const date = (iso: string) => new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+const unlockedCount = progress.badges.filter((b) => b.unlockedAt).length;
+
+const activity = [
+  ...history.quizSessions.map((s) => ({
+    at: s.playedAt,
+    href: `/quiz/${s.themeId}`,
+    label: `Quiz · ${themeTitle.get(s.themeId) ?? s.themeId}`,
+    result: `${s.answers.filter(isCorrect).length} / ${s.answers.length}`,
+    detail: `+${sessionXp(s.answers)} XP`,
+  })),
+  ...history.attempts.map((a) => ({
+    at: a.playedAt,
+    href: `/jouer/${a.scenarioId}`,
+    label: `Scénario · ${scenarioTitle.get(a.scenarioId) ?? a.scenarioId}`,
+    result: `${a.score} / 100`,
+    detail: '',
+  })),
+]
+  .sort((a, b) => b.at.localeCompare(a.at))
+  .slice(0, 15);
+const card = 'rounded border border-slate-200 bg-white px-5 py-4';
+---
+
+<Base title="Progression">
+  <h1 class="text-2xl font-bold">Progression</h1>
+
+  <div class="mt-4 grid grid-cols-[2fr_1fr] gap-4">
+    <section class={card}>
+      <div class="flex items-baseline justify-between">
+        <span class="text-xl font-bold">Niv. {level.number} · {level.name}</span>
+        <span class="text-slate-500">{level.next ? `${xp} / ${level.next} XP` : `${xp} XP · niveau max`}</span>
+      </div>
+      <div class="mt-2 h-3 overflow-hidden rounded-full bg-slate-200">
+        <div class="h-full rounded-full bg-blue-600" style={`width: ${levelWidth}%`}></div>
+      </div>
+      <p class="mt-2 text-sm text-slate-500">
+        Quiz {xpBySource.quiz} XP · Scénarios {xpBySource.scenarios} XP (meilleur score de chacun) · Fiches {xpBySource.fiches} XP
+        (une fois par fiche lue)
+      </p>
+    </section>
+    <section class={card}>
+      <div class="text-xl font-bold">🔥 {streak.current} jour{streak.current > 1 ? 's' : ''}</div>
+      <p class="text-sm text-slate-500">Record : {streak.best} jour{streak.best > 1 ? 's' : ''}</p>
+      {
+        !streak.today && (
+          <p class="mt-2 text-sm font-medium text-orange-700">
+            {streak.current > 0 ? 'Joue aujourd’hui pour garder ta série.' : 'Un quiz ou un scénario aujourd’hui lance une série.'}
+          </p>
+        )
+      }
+    </section>
+  </div>
+
+  <section class={`${card} mt-4`}>
+    <h2 class="text-lg font-semibold">Badges · {unlockedCount} / {progress.badges.length}</h2>
+    <ul class="mt-3 grid grid-cols-5 gap-3">
+      {
+        progress.badges.map((b) => (
+          <li
+            class:list={[
+              'rounded border px-3 py-2',
+              b.unlockedAt ? 'border-violet-200 bg-violet-50' : 'border-slate-200 bg-slate-50 opacity-50 grayscale',
+            ]}
+          >
+            <span class="text-2xl">{b.icon}</span>
+            <span class="block font-medium">{b.label}</span>
+            <span class="block text-xs text-slate-600">{b.description}</span>
+            {b.unlockedAt && <span class="block text-xs text-violet-700">{date(b.unlockedAt)}</span>}
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <div class="mt-4 grid grid-cols-2 gap-4">
+    <section class={card}>
+      <h2 class="text-lg font-semibold">Maîtrise par thème</h2>
+      <ul class="mt-3 space-y-3">
+        {
+          themes.map((t) => {
+            const p = progress.themes[t.id];
+            return (
+              <li>
+                <a href={`/quiz/${t.id}`} class="flex items-baseline justify-between text-sm hover:text-blue-700">
+                  <span class="font-medium">{t.data.title}</span>
+                  <span class="text-slate-500">
+                    {p.mastered} / {p.total}
+                  </span>
+                </a>
+                <div class="mt-1 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * p.mastered) / p.total}%`} />
+                </div>
+              </li>
+            );
+          })
+        }
+      </ul>
+    </section>
+    <section class={card}>
+      <h2 class="text-lg font-semibold">Technos que tu confonds</h2>
+      {
+        progress.confusions.length === 0 ? (
+          <p class="mt-3 text-sm text-slate-500">Aucune erreur au quiz pour l'instant.</p>
+        ) : (
+          <ul class="mt-3 space-y-1.5 text-sm">
+            {progress.confusions.map(({ techs: pair, count }) => (
+              <li class="flex items-baseline justify-between">
+                <span>
+                  {pair.map((id, i) => (
+                    <>
+                      {i > 0 && ' ↔ '}
+                      <a href={`/fiches/${id}`} class="text-blue-700 underline">
+                        {techName.get(id) ?? id}
+                      </a>
+                    </>
+                  ))}
+                </span>
+                <span class="text-slate-500">
+                  {count} fois
+                </span>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </section>
+  </div>
+
+  <section class={`${card} mt-4`}>
+    <h2 class="text-lg font-semibold">Dernières activités</h2>
+    {
+      activity.length === 0 ? (
+        <p class="mt-3 text-sm text-slate-500">Rien encore : lance un quiz ou un scénario.</p>
+      ) : (
+        <table class="mt-2 w-full text-sm">
+          <tbody>
+            {activity.map((a) => (
+              <tr class="border-t border-slate-100">
+                <td class="py-1.5 pr-3 whitespace-nowrap text-slate-500">{date(a.at)}</td>
+                <td class="py-1.5 pr-3">
+                  <a href={a.href} class="hover:text-blue-700">
+                    {a.label}
+                  </a>
+                </td>
+                <td class="py-1.5 pr-3 text-right font-medium whitespace-nowrap">{a.result}</td>
+                <td class="py-1.5 text-right whitespace-nowrap text-blue-700">{a.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    }
+  </section>
+</Base>

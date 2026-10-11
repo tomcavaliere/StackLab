@@ -1,0 +1,276 @@
+// Système de récompense : fonctions pures, sans dépendance serveur (l'îlot Quiz les utilise aussi). Testé avec Vitest.
+// Les règles sont décrites dans CLAUDE.md, section « Règles de récompense ».
+
+export interface QuizAnswer {
+  questionId: string;
+  chosenTech: string;
+  correctTech: string;
+}
+
+export interface QuizSession {
+  themeId: string;
+  playedAt: string; // ISO UTC
+  answers: QuizAnswer[]; // dans l'ordre où les questions ont été posées
+}
+
+/** Historique lu en base, dans l'ordre chronologique. */
+export interface History {
+  quizSessions: QuizSession[];
+  attempts: { scenarioId: string; playedAt: string; score: number }[];
+  viewedTechs: string[]; // ids distincts
+}
+
+/** Un thème de quiz tel que décrit dans le contenu : ses questions actuelles. */
+export interface Theme {
+  id: string;
+  questionIds: string[];
+}
+
+export const SESSION_SIZE = 10;
+export const MASTERY_STREAK = 2; // avec 2 choix, une seule bonne réponse peut être un coup de chance
+export const XP = { correct: 10, comboStep: 2, comboMax: 10, perfect: 30, perfectMin: 5, fiche: 5 };
+
+export const isCorrect = (a: QuizAnswer) => a.chosenTech === a.correctTech;
+
+/** XP d'une bonne réponse. combo : bonnes réponses consécutives, celle-ci comprise (≥ 1). */
+export const answerXp = (combo: number) => XP.correct + Math.min(XP.comboStep * (combo - 1), XP.comboMax);
+
+/** XP d'une session : chaque bonne réponse selon son combo, plus le bonus sans faute. */
+export function sessionXp(answers: QuizAnswer[]) {
+  let combo = 0;
+  let xp = 0;
+  for (const a of answers) {
+    combo = isCorrect(a) ? combo + 1 : 0;
+    if (combo) xp += answerXp(combo);
+  }
+  if (answers.length >= XP.perfectMin && answers.every(isCorrect)) xp += XP.perfect;
+  return xp;
+}
+
+function bestCombo(answers: QuizAnswer[]) {
+  let combo = 0;
+  let best = 0;
+  for (const a of answers) {
+    combo = isCorrect(a) ? combo + 1 : 0;
+    best = Math.max(best, combo);
+  }
+  return best;
+}
+
+export interface QuestionStat {
+  seen: number;
+  streak: number; // bonnes réponses consécutives les plus récentes ; 0 si la dernière réponse est fausse
+  lastAt: string;
+}
+
+/** Statistiques des questions d'un thème, par id de question. Sessions dans l'ordre chronologique. */
+export function questionStats(sessions: QuizSession[], themeId: string) {
+  const stats: Record<string, QuestionStat> = {};
+  for (const s of sessions) {
+    if (s.themeId !== themeId) continue;
+    for (const a of s.answers) {
+      const prev = stats[a.questionId];
+      stats[a.questionId] = {
+        seen: (prev?.seen ?? 0) + 1,
+        streak: isCorrect(a) ? (prev?.streak ?? 0) + 1 : 0,
+        lastAt: s.playedAt,
+      };
+    }
+  }
+  return stats;
+}
+
+export const isMastered = (s: QuestionStat | undefined) => (s?.streak ?? 0) >= MASTERY_STREAK;
+
+/** 0 ratée, 1 jamais vue, 2 en cours, 3 maîtrisée. */
+function priority(s: QuestionStat | undefined) {
+  if (!s) return 1;
+  if (s.streak === 0) return 0;
+  return isMastered(s) ? 3 : 2;
+}
+
+/**
+ * Les n questions à poser : ratées, puis jamais vues, puis en cours, puis maîtrisées ;
+ * dans un même groupe, la plus anciennement vue d'abord. Tri stable : à égalité, l'ordre reçu est gardé.
+ */
+export function pickQuestions<Q extends { id: string }>(questions: Q[], stats: Record<string, QuestionStat>, n: number) {
+  return [...questions]
+    .sort(
+      (a, b) =>
+        priority(stats[a.id]) - priority(stats[b.id]) || (stats[a.id]?.lastAt ?? '').localeCompare(stats[b.id]?.lastAt ?? ''),
+    )
+    .slice(0, n);
+}
+
+export const LEVELS = [
+  { xp: 0, name: 'Stagiaire' },
+  { xp: 150, name: 'Junior' },
+  { xp: 400, name: 'Confirmé' },
+  { xp: 800, name: 'Senior' },
+  { xp: 1500, name: 'Lead' },
+  { xp: 2500, name: 'Staff' },
+  { xp: 4000, name: 'Principal' },
+  { xp: 6000, name: 'Architecte' },
+];
+
+export interface Level {
+  number: number; // 1 pour le premier palier
+  name: string;
+  floor: number; // XP du palier atteint
+  next: number | null; // XP du palier suivant, null au dernier
+}
+
+export function levelOf(xp: number): Level {
+  const i = LEVELS.findLastIndex((l) => xp >= l.xp);
+  return { number: i + 1, name: LEVELS[i].name, floor: LEVELS[i].xp, next: LEVELS[i + 1]?.xp ?? null };
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+/** Jour local AAAA-MM-JJ. */
+export const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addDays = (day: string, n: number) => {
+  const [y, m, d] = day.split('-').map(Number);
+  return localDay(new Date(y, m - 1, d + n));
+};
+
+/**
+ * Série de jours locaux consécutifs avec au moins une activité.
+ * current reste en vie si l'on a joué hier mais pas encore aujourd'hui ; best est le record.
+ */
+export function dayStreak(dates: string[], now: Date) {
+  const days = new Set(dates.map((d) => localDay(new Date(d))));
+  let best = 0;
+  let run = 0;
+  let prev = '';
+  for (const day of [...days].sort()) {
+    run = prev && addDays(prev, 1) === day ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = day;
+  }
+  const today = localDay(now);
+  let cursor = days.has(today) ? today : addDays(today, -1);
+  let current = 0;
+  while (days.has(cursor)) {
+    current++;
+    cursor = addDays(cursor, -1);
+  }
+  return { current, best, today: days.has(today) };
+}
+
+/** Statistiques sur lesquelles portent les badges. */
+export interface BadgeStats {
+  sessions: number;
+  correct: number;
+  bestCombo: number;
+  perfectSessions: number; // sessions d'au moins SESSION_SIZE questions, sans erreur
+  bestStreak: number;
+  masteredThemes: number;
+  playedThemes: number;
+  themes: number;
+  bestScenario: number;
+  fiches: number;
+}
+
+export const BADGES: { id: string; icon: string; label: string; description: string; test: (s: BadgeStats) => boolean }[] = [
+  { id: 'premier-pas', icon: '👣', label: 'Premier pas', description: 'Terminer une session de quiz', test: (s) => s.sessions >= 1 },
+  { id: 'en-rythme', icon: '🎵', label: 'En rythme', description: "5 bonnes réponses d'affilée", test: (s) => s.bestCombo >= 5 },
+  {
+    id: 'sans-faute',
+    icon: '🎯',
+    label: 'Sans faute',
+    description: `Une session de ${SESSION_SIZE} questions sans erreur`,
+    test: (s) => s.perfectSessions >= 1,
+  },
+  { id: 'serie-3', icon: '🔥', label: 'Trois jours', description: 'Jouer 3 jours de suite', test: (s) => s.bestStreak >= 3 },
+  { id: 'serie-7', icon: '📅', label: 'Une semaine', description: 'Jouer 7 jours de suite', test: (s) => s.bestStreak >= 7 },
+  {
+    id: 'specialiste',
+    icon: '🏅',
+    label: 'Spécialiste',
+    description: "Maîtriser toutes les questions d'un thème",
+    test: (s) => s.masteredThemes >= 1,
+  },
+  {
+    id: 'polyvalent',
+    icon: '🧭',
+    label: 'Polyvalent',
+    description: 'Jouer au moins une session dans chaque thème',
+    test: (s) => s.themes > 0 && s.playedThemes >= s.themes,
+  },
+  { id: 'centurion', icon: '💯', label: 'Centurion', description: '100 bonnes réponses au total', test: (s) => s.correct >= 100 },
+  { id: 'architecte', icon: '🏛', label: 'Architecte', description: 'Obtenir 90 ou plus à un scénario', test: (s) => s.bestScenario >= 90 },
+  { id: 'curieux', icon: '📚', label: 'Curieux', description: 'Lire 20 fiches différentes', test: (s) => s.fiches >= 20 },
+];
+
+export interface Progress {
+  xp: number;
+  xpBySource: { quiz: number; scenarios: number; fiches: number };
+  level: Level;
+  streak: { current: number; best: number; today: boolean };
+  themes: Record<string, { mastered: number; total: number; sessions: number }>;
+  unlocked: string[]; // ids des badges dont la condition est remplie
+  confusions: { techs: [string, string]; count: number }[]; // paires de technos confondues, les plus fréquentes d'abord
+}
+
+export function computeProgress(history: History, themes: Theme[], now: Date): Progress {
+  const { quizSessions, attempts, viewedTechs } = history;
+
+  const bestByScenario = new Map<string, number>();
+  for (const a of attempts) bestByScenario.set(a.scenarioId, Math.max(bestByScenario.get(a.scenarioId) ?? 0, a.score));
+  const xpBySource = {
+    quiz: quizSessions.reduce((sum, s) => sum + sessionXp(s.answers), 0),
+    scenarios: [...bestByScenario.values()].reduce((sum, n) => sum + n, 0),
+    fiches: XP.fiche * viewedTechs.length,
+  };
+  const xp = xpBySource.quiz + xpBySource.scenarios + xpBySource.fiches;
+
+  const themeProgress = Object.fromEntries(
+    themes.map((t) => {
+      const stats = questionStats(quizSessions, t.id);
+      return [
+        t.id,
+        {
+          mastered: t.questionIds.filter((id) => isMastered(stats[id])).length,
+          total: t.questionIds.length,
+          sessions: quizSessions.filter((s) => s.themeId === t.id).length,
+        },
+      ];
+    }),
+  );
+
+  const streak = dayStreak([...quizSessions.map((s) => s.playedAt), ...attempts.map((a) => a.playedAt)], now);
+  const answers = quizSessions.flatMap((s) => s.answers);
+  const stats: BadgeStats = {
+    sessions: quizSessions.length,
+    correct: answers.filter(isCorrect).length,
+    bestCombo: Math.max(0, ...quizSessions.map((s) => bestCombo(s.answers))),
+    perfectSessions: quizSessions.filter((s) => s.answers.length >= SESSION_SIZE && s.answers.every(isCorrect)).length,
+    bestStreak: streak.best,
+    masteredThemes: Object.values(themeProgress).filter((t) => t.total > 0 && t.mastered === t.total).length,
+    playedThemes: Object.values(themeProgress).filter((t) => t.sessions > 0).length,
+    themes: themes.length,
+    bestScenario: Math.max(0, ...bestByScenario.values()),
+    fiches: viewedTechs.length,
+  };
+
+  const pairs = new Map<string, number>();
+  for (const a of answers) {
+    if (isCorrect(a)) continue;
+    const key = [a.chosenTech, a.correctTech].sort().join('|');
+    pairs.set(key, (pairs.get(key) ?? 0) + 1);
+  }
+  const confusions = [...pairs]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([key, count]) => ({ techs: key.split('|') as [string, string], count }));
+
+  return {
+    xp,
+    xpBySource,
+    level: levelOf(xp),
+    streak,
+    themes: themeProgress,
+    unlocked: BADGES.filter((b) => b.test(stats)).map((b) => b.id),
+    confusions,
+  };
+}

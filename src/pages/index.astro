@@ -2,13 +2,16 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
-const [techs, scenarios, companies] = await Promise.all([
+const [techs, scenarios, companies, themes] = await Promise.all([
   getCollection('techs'),
   getCollection('scenarios'),
   getCollection('companies'),
+  getCollection('quiz'),
 ]);
+const questions = themes.reduce((n, t) => n + t.data.questions.length, 0);
 const modules = [
   { href: '/fiches', title: 'Fiches', count: `${techs.length} fiches techno`, text: 'Le rôle de chaque techno, quand la choisir et quand l\'éviter.' },
+  { href: '/quiz', title: 'Quiz', count: `${themes.length} thèmes · ${questions} questions`, text: 'Des questions courtes, 2 technos, une seule bonne réponse. XP, séries et badges.' },
   { href: '/jouer', title: 'Jouer', count: `${scenarios.length} scénarios`, text: 'Composer une stack pour un besoin client, puis lire le debrief.' },
   { href: '/entreprises', title: 'Entreprises', count: `${companies.length} stacks d'entreprise`, text: 'Les stacks réelles, sourcées, et le mode « devine la stack ».' },
 ];
@@ -17,7 +20,7 @@ const modules = [
 <Base title="Accueil">
   <h1 class="text-2xl font-bold">StackLab</h1>
   <p class="mt-1 text-slate-600">Comprendre le rôle de chaque techno dans une stack et s'entraîner à en composer une.</p>
-  <ul class="mt-6 grid grid-cols-3 gap-4">
+  <ul class="mt-6 grid grid-cols-2 gap-4">
     {
       modules.map((m) => (
         <li>
