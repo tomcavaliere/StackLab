@@ -98,7 +98,7 @@ data/stacklab.db             base locale, ignorée par git
    |---|---|
    | `name` | nom affiché |
    | `kind` | `langage` `framework` `base-de-donnees` `cache-queue` `moteur-traitement` `orchestrateur` `plateforme` `service-cloud` `outil-infra` `concept` |
-   | `layers` | couches où la carte peut se poser : `frontend` `mobile` `backend-api` `auth` `base-operationnelle` `cache-messaging` `stockage-analytique` `traitement-data` `orchestration` `ml` `conteneurs-infra` `cloud` `ci-cd` `observabilite`. **`[]` pour un langage** : il n'est pas une carte du jeu. |
+   | `layers` | couches où la carte peut se poser : `frontend` `mobile` `backend-api` `auth` `base-operationnelle` `cache-messaging` `stockage-analytique` `traitement-data` `orchestration` `ml` `conteneurs-infra` `cloud` `ci-cd` `observabilite`. **`[]` pour un langage ou un concept** (REST, GraphQL…) : ce n'est pas une carte du jeu. |
    | `languages` | ids des fiches langage dans lesquels *on écrit* avec cette techno (pas son langage d'implémentation). Optionnel. |
    | `tags` | libres, optionnel |
    | `difficulty` | `1` prise en main rapide · `2` demande de la pratique · `3` expertise ou exploitation lourde |
@@ -107,7 +107,8 @@ data/stacklab.db             base locale, ignorée par git
    | `integratesWith` | même format, pour les technos compatibles. Optionnel. |
 
 3. Écrire le corps avec exactement ces 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`. Les sections « Alternatives » et « S'intègre avec » sont générées depuis le frontmatter.
-4. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant.
+4. **Si `layers` n'est pas vide**, ajouter un verdict pour la fiche dans chaque scénario dont les couches requises ou optionnelles croisent les siennes. Sans verdict, la carte sort « non évaluée » (grise, hors score) dans ce scénario.
+5. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
 
 La fiche apparaît alors dans la liste des fiches et, si `layers` n'est pas vide, dans la pioche du jeu.
 
@@ -207,3 +208,4 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 - [x] Phase 4 : animation des flux (requête utilisateur, flux de données)
 - [x] Phase 5 : stacks d'entreprises (Airbnb, Instagram) + mode devine
 - [x] Phase 6 : quiz par thème (4 thèmes, 49 questions) + système de récompense (XP, niveaux, série, maîtrise, badges, page Progression)
+- [x] Phase 7 : contenu enrichi : 20 fiches (dont 5 langages et 4 concepts d'API), 3 thèmes de quiz (Frameworks web & mobile, Langages, API & communication), 111 questions au total, verdicts des nouvelles cartes dans les 5 scénarios

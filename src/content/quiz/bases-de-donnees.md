@@ -62,4 +62,34 @@ questions:
     answer: postgresql
     decoy: duckdb
     why: "Un seul processus peut écrire dans un fichier DuckDB. PostgreSQL gère les accès concurrents (MVCC)."
+  - id: base-dans-un-fichier
+    prompt: "La base locale d'un outil en ligne de commande, dans un simple fichier, sans serveur"
+    answer: sqlite
+    decoy: postgresql
+    why: "SQLite est une bibliothèque embarquée : toute la base tient dans un fichier, sans serveur à installer. PostgreSQL est un serveur à faire tourner à côté."
+  - id: donnees-hors-ligne
+    prompt: "Garder les données d'une application mobile disponibles hors ligne, sur le téléphone"
+    answer: sqlite
+    decoy: dynamodb
+    why: "SQLite tourne sur le téléphone lui-même : il est intégré à iOS et Android. DynamoDB est un service AWS, inaccessible sans réseau."
+  - id: plusieurs-serveurs-web
+    prompt: "La base d'une application web déployée sur plusieurs serveurs qui écrivent tous"
+    answer: postgresql
+    decoy: sqlite
+    why: "Un fichier SQLite vit sur une seule machine et n'accepte qu'un écrivain à la fois. PostgreSQL est un serveur auquel toutes les instances se connectent."
+  - id: recherche-catalogue
+    prompt: "Une recherche dans un gros catalogue, tolérante aux fautes de frappe, triée par pertinence, avec filtres à facettes"
+    answer: elasticsearch
+    decoy: postgresql
+    why: "Elasticsearch est un moteur de recherche : index inversé, score de pertinence, tolérance aux fautes et agrégations pour les facettes. La recherche plein texte de PostgreSQL convient à des besoins plus simples."
+  - id: recherche-petit-blog
+    prompt: "Une barre de recherche dans les articles d'un petit blog, sans ajouter de système"
+    answer: postgresql
+    decoy: elasticsearch
+    why: "La recherche plein texte intégrée à PostgreSQL évite un second système à opérer et à synchroniser. Elasticsearch se justifie quand la recherche devient le cœur du produit."
+  - id: tableaux-de-bord-evenements
+    prompt: "Des tableaux de bord interactifs sur un flux massif d'événements, mis à jour en continu"
+    answer: clickhouse
+    decoy: postgresql
+    why: "ClickHouse range les données par colonne et agrège vite de gros volumes d'événements à mesure qu'ils arrivent. PostgreSQL stocke par lignes et vise le transactionnel."
 ---

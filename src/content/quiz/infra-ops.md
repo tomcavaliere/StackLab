@@ -67,4 +67,29 @@ questions:
     answer: aws
     decoy: heroku
     why: "AWS offre un large choix de services managés et de régions. Un PaaS limite le contrôle sur le réseau et les services data."
+  - id: infra-decrite-en-code
+    prompt: "Décrire en code les réseaux, bases et clusters d'un compte AWS, et revoir chaque changement en pull request"
+    answer: terraform
+    decoy: kubernetes
+    why: "Terraform décrit les ressources cloud dans des fichiers versionnés, et son plan montre les changements avant de les appliquer. Kubernetes orchestre des conteneurs ; il ne crée ni les réseaux ni les bases du compte."
+  - id: https-et-repartition
+    prompt: "Recevoir le HTTPS et répartir les requêtes entre plusieurs instances de l'application, sur des machines virtuelles"
+    answer: nginx
+    decoy: docker
+    why: "Nginx sert de reverse proxy : il termine le HTTPS, sert les fichiers statiques et répartit la charge. Docker empaquette l'application ; il ne route pas le trafic."
+  - id: miniature-a-l-envoi
+    prompt: "Générer une miniature à chaque image déposée dans S3, quelques fois par jour"
+    answer: aws-lambda
+    decoy: kubernetes
+    why: "Lambda s'exécute à la demande sur l'événement S3 et ne coûte rien entre deux déclenchements. Un cluster Kubernetes tourne en permanence."
+  - id: worker-permanent
+    prompt: "Un worker qui consomme une file de messages en continu, jour et nuit"
+    answer: heroku
+    decoy: aws-lambda
+    why: "Une fonction Lambda s'exécute au plus 15 minutes, puis s'arrête. Un PaaS comme Heroku exécute un processus de longue durée."
+  - id: fouiller-les-journaux
+    prompt: "Rechercher par mot-clé dans les journaux de tous les services"
+    answer: elasticsearch
+    decoy: prometheus
+    why: "Elasticsearch indexe le texte des journaux et permet de les fouiller (pile ELK). Prometheus collecte des métriques numériques, pas des lignes de journaux."
 ---

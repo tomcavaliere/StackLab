@@ -27,6 +27,8 @@ verdicts:
     - { tech: ruby-on-rails, verdict: acceptable, why: "Même remarque que Django : productif, mais ses atouts ne servent pas ici et la montée en charge demande un effort." }
     - { tech: nextjs, verdict: inadapte, why: "Framework orienté interface : ses routes d'API ne sont pas faites pour un service à fort trafic consommé par des applications mobiles." }
     - { tech: supabase, verdict: inadapte, why: "Une API générée sur la base ne donne pas le contrôle nécessaire pour encaisser les pics ni pour publier des événements métier." }
+    - { tech: nestjs, verdict: acceptable, why: "Node.js structuré en modules, adapté à 15 développeurs et à une API dominée par les entrées-sorties ; un calcul imprévu bloque toujours le processus." }
+    - { tech: laravel, verdict: acceptable, why: "Même remarque que Rails : productif, mais ses atouts (vues, kits de démarrage) ne servent pas pour une API pure, et la montée en charge demande un effort." }
   base-operationnelle:
     - { tech: cassandra, verdict: ideal, why: "Écritures continues des positions, accès par clé (livreur, commande), disponibilité même si un nœud tombe : son cas d'usage type." }
     - { tech: dynamodb, verdict: ideal, why: "Mêmes atouts sans cluster à opérer, si l'on accepte la dépendance à AWS." }
@@ -34,6 +36,8 @@ verdicts:
     - { tech: mysql, verdict: acceptable, why: "Même profil que PostgreSQL : solide pour les commandes, à compléter pour les positions." }
     - { tech: mongodb, verdict: acceptable, why: "Sharding intégré et écritures par document rapides ; le choix de la clé de partition est décisif et difficile à changer ensuite." }
     - { tech: supabase, verdict: acceptable, why: "C'est un PostgreSQL hébergé : mêmes limites que PostgreSQL, et ses API générées ne servent pas ici." }
+    - { tech: sqlite, verdict: inadapte, why: "Un fichier sur une seule machine, un seul écrivain à la fois : impossible avec des écritures continues venues de nombreuses instances." }
+    - { tech: elasticsearch, verdict: inadapte, why: "Moteur de recherche, pas la base de référence des commandes : pas de transactions, et des écritures visibles après un délai." }
   cache-messaging:
     - { tech: redis, verdict: ideal, why: "Position courante des livreurs et état des commandes en mémoire : les lectures répétées ne touchent plus la base." }
     - { tech: kafka, verdict: ideal, why: "Chaque changement d'état devient un événement que facturation et notifications consomment à leur rythme, et qu'on peut rejouer après une panne." }
@@ -43,15 +47,19 @@ verdicts:
   conteneurs-infra:
     - { tech: kubernetes, verdict: ideal, why: "Mise à l'échelle automatique aux heures des repas et redémarrage des instances en panne ; l'équipe plateforme peut l'opérer." }
     - { tech: docker, verdict: ideal, why: "Des images identiques du poste à la production, base du déploiement sur Kubernetes." }
+    - { tech: terraform, verdict: ideal, why: "Clusters, bases et réseaux décrits en code et revus en pull request : des environnements reproductibles, gérés par l'équipe plateforme." }
+    - { tech: nginx, verdict: acceptable, why: "Reverse proxy et répartition de charge devant les instances ; sur Kubernetes, un contrôleur Ingress ou le répartiteur du cloud tient souvent ce rôle." }
   cloud:
     - { tech: aws, verdict: ideal, why: "Bases, Kafka et Kubernetes managés, et plusieurs zones de disponibilité pour résister à la panne d'un datacenter." }
     - { tech: aws-s3, verdict: acceptable, why: "Utile pour archiver l'historique des positions, mais pas au cœur du besoin." }
     - { tech: heroku, verdict: inadapte, why: "Le PaaS limite le contrôle (réseau, placement, services data) et devient coûteux à cette échelle." }
     - { tech: vercel, verdict: inadapte, why: "Pensé pour des fronts et des fonctions courtes, pas pour une API à fort trafic avec des connexions persistantes." }
+    - { tech: aws-lambda, verdict: acceptable, why: "Absorbe les pics sans serveur à gérer, mais sans connexions persistantes, avec des démarrages à froid et un coût à surveiller sous trafic soutenu." }
   observabilite:
     - { tech: prometheus, verdict: ideal, why: "Taux d'erreurs et latence de chaque service, avec des alertes avant que les pics ne fassent tomber l'API." }
     - { tech: grafana, verdict: ideal, why: "Les pics visibles en direct pour l'équipe d'astreinte." }
     - { tech: sentry, verdict: acceptable, why: "Utile pour les erreurs applicatives, mais ne montre ni la saturation ni la latence globale." }
+    - { tech: elasticsearch, verdict: acceptable, why: "Centralise et fouille les journaux de tous les services ; ne remplace ni les métriques ni les alertes de latence." }
   ci-cd:
     - { tech: github-actions, verdict: ideal, why: "Des déploiements fréquents et automatisés, indispensables à 15 développeurs sur plusieurs services." }
   auth:
@@ -60,6 +68,7 @@ verdicts:
     - { tech: django, verdict: acceptable, why: "Seulement si l'API est écrite en Django ; dans une architecture de services, un service d'identité commun est plus naturel." }
     - { tech: ruby-on-rails, verdict: acceptable, why: "Seulement si l'API est écrite en Rails ; sinon un service d'identité commun est plus naturel." }
     - { tech: supabase, verdict: acceptable, why: "Authentification hébergée liée à une base Supabase, peu naturelle dans une architecture de services." }
+    - { tech: laravel, verdict: acceptable, why: "Seulement si l'API est écrite en Laravel ; sinon un service d'identité commun est plus naturel." }
 antiPatterns:
   - { techs: [kafka, rabbitmq], penalty: 10, why: "Deux systèmes de messagerie pour le même besoin d'événements : double exploitation, aucun gain." }
   - { techs: [redis, memcached], penalty: 5, why: "Deux caches en mémoire : Redis couvre déjà le cache simple." }

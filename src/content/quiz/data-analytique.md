@@ -62,4 +62,14 @@ questions:
     answer: airflow
     decoy: dbt
     why: "dbt ne transforme que ce qui est déjà chargé. Une tâche Airflow peut appeler l'API et charger les données, puis déclencher dbt."
+  - id: statistiques-dans-l-application
+    prompt: "Des statistiques en temps réel affichées aux utilisateurs d'une application, sur un très gros flux d'événements"
+    answer: clickhouse
+    decoy: duckdb
+    why: "ClickHouse est un serveur colonnaire conçu pour l'analytique en temps réel derrière des tableaux de bord interrogés en continu. DuckDB est embarqué dans un processus, pour l'analyse locale."
+  - id: traitement-a-chaque-fichier
+    prompt: "Lancer un petit traitement à chaque fichier déposé dans un bucket S3"
+    answer: aws-lambda
+    decoy: airflow
+    why: "Une fonction Lambda se déclenche sur l'événement S3, sans serveur à opérer. Airflow planifie des graphes de tâches : un déclenchement par fichier y est plus lourd."
 ---

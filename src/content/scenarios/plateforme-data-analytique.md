@@ -22,6 +22,7 @@ verdicts:
     - { tech: bigquery, verdict: ideal, why: "Serverless, rien à dimensionner, facturé à l'usage : convient bien à un traitement quotidien." }
     - { tech: aws-s3, verdict: acceptable, why: "Bonne zone d'atterrissage des exports bruts, mais les analystes ont besoin d'un moteur SQL par-dessus." }
     - { tech: duckdb, verdict: acceptable, why: "Économique et rapide, mais sans base partagée ni gestion des accès pour toute une équipe d'analystes." }
+    - { tech: clickhouse, verdict: acceptable, why: "Très rapide pour agréger de gros volumes, mais un serveur à opérer ou une offre managée de plus ; pour des analystes et un chargement quotidien, un entrepôt managé est plus simple." }
   traitement-data:
     - { tech: dbt, verdict: ideal, why: "Des indicateurs écrits en SQL, testés et documentés dans l'entrepôt : une seule définition du chiffre d'affaires pour tout le monde." }
     - { tech: duckdb, verdict: acceptable, why: "Transformations rapides sur une machine ; il faut organiser soi-même le partage des résultats." }
@@ -34,12 +35,14 @@ verdicts:
     - { tech: aws-s3, verdict: ideal, why: "Dépôt des exports des caisses et du site avant chargement dans l'entrepôt." }
     - { tech: heroku, verdict: inadapte, why: "PaaS pour applications web, sans services de données adaptés." }
     - { tech: vercel, verdict: inadapte, why: "Hébergement de fronts et de fonctions courtes, sans rapport avec une plateforme data." }
+    - { tech: aws-lambda, verdict: acceptable, why: "Peut exécuter de petites étapes d'ingestion à la demande ; l'orchestrateur reste nécessaire pour enchaîner et relancer les étapes." }
   ci-cd:
     - { tech: github-actions, verdict: ideal, why: "Tester les modèles dbt à chaque modification avant qu'un indicateur faux n'arrive en réunion." }
   observabilite:
     - { tech: sentry, verdict: acceptable, why: "Remonte les erreurs des scripts, mais ne dit rien de la fraîcheur ni de la qualité des données : les alertes de l'orchestrateur et les tests dbt sont plus utiles." }
     - { tech: grafana, verdict: acceptable, why: "Peut afficher l'état des chargements, mais ce n'est pas un outil de BI pour les analystes." }
     - { tech: prometheus, verdict: surdimensionne, why: "Une infrastructure de métriques pour un traitement quotidien : les alertes de l'orchestrateur suffisent." }
+    - { tech: elasticsearch, verdict: surdimensionne, why: "Un cluster de journaux à opérer pour un traitement quotidien : les alertes de l'orchestrateur suffisent." }
   cache-messaging:
     - { tech: kafka, verdict: surdimensionne, why: "Le besoin est un chargement quotidien : un flux d'événements en continu n'apporte rien et coûte en exploitation." }
 antiPatterns:

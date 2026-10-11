@@ -18,12 +18,16 @@ optionalLayers: [frontend, cloud, conteneurs-infra, observabilite, ci-cd]
 verdicts:
   mobile:
     - { tech: react-native, verdict: acceptable, why: "Pratique pour certains écrans partagés entre iOS et Android ; le cœur de l'application reste natif (pas de carte native dans la pioche)." }
+    - { tech: flutter, verdict: acceptable, why: "Une base de code pour iOS et Android ; le cœur d'une application de cette envergure reste en général natif (pas de carte native dans la pioche)." }
   frontend:
     - { tech: react, verdict: ideal, why: "Version web interactive du fil et des profils." }
     - { tech: nextjs, verdict: acceptable, why: "Rendu serveur utile pour les pages publiques ; une brique de plus à côté du back-end principal." }
     - { tech: vue, verdict: acceptable, why: "Convient pour une version web interactive." }
     - { tech: django, verdict: acceptable, why: "Gabarits serveur : possible pour des pages simples, limité pour un web très interactif." }
     - { tech: ruby-on-rails, verdict: acceptable, why: "Vues serveur : même remarque que Django." }
+    - { tech: angular, verdict: acceptable, why: "Convient pour une version web interactive ; un cadre lourd pour une équipe qui a démarré toute petite." }
+    - { tech: svelte, verdict: acceptable, why: "Convient pour une version web interactive." }
+    - { tech: laravel, verdict: acceptable, why: "Vues serveur : même remarque que Django." }
   backend-api:
     - { tech: django, verdict: ideal, why: "Python et Django : la productivité d'une petite équipe, qui monte en charge avec un vrai travail d'optimisation." }
     - { tech: ruby-on-rails, verdict: acceptable, why: "Même productivité ; même effort d'optimisation à prévoir à cette échelle." }
@@ -34,6 +38,8 @@ verdicts:
     - { tech: gin, verdict: acceptable, why: "Performant ; moins productif qu'un framework complet pour une petite équipe qui itère vite." }
     - { tech: nextjs, verdict: inadapte, why: "Framework orienté interface, pas le back-end d'une application mobile à cette échelle." }
     - { tech: supabase, verdict: inadapte, why: "Back-end hébergé de projet unique, pas conçu pour la logique de fil et de compteurs à cette échelle." }
+    - { tech: nestjs, verdict: acceptable, why: "Adapté aux nombreuses entrées-sorties d'un fil d'actualité ; sa structure imposée ralentit une toute petite équipe au départ." }
+    - { tech: laravel, verdict: acceptable, why: "Productif pour une petite équipe ; même effort d'optimisation à prévoir que Rails à cette échelle." }
   base-operationnelle:
     - { tech: postgresql, verdict: ideal, why: "Utilisateurs, photos et relations sont des données relationnelles, qu'on partitionne sur de nombreux serveurs." }
     - { tech: cassandra, verdict: ideal, why: "Écritures massives (fil, activité) réparties et répliquées entre plusieurs datacenters." }
@@ -41,6 +47,8 @@ verdicts:
     - { tech: mongodb, verdict: acceptable, why: "Possible, mais les relations entre utilisateurs, photos et abonnements sont très structurées." }
     - { tech: dynamodb, verdict: acceptable, why: "Clé-valeur managé qui tient la charge ; modélisation contrainte et dépendance à AWS." }
     - { tech: supabase, verdict: inadapte, why: "Back-end hébergé de projet unique, pas à cette échelle." }
+    - { tech: elasticsearch, verdict: acceptable, why: "Recherche d'utilisateurs et de hashtags à côté de la base principale ; pas la base de référence." }
+    - { tech: sqlite, verdict: inadapte, why: "Un fichier sur une seule machine, un seul écrivain à la fois : sans rapport avec des centaines de millions d'utilisateurs." }
   cache-messaging:
     - { tech: memcached, verdict: ideal, why: "Cache de lecture massif devant les bases : le fil et les profils sont relus sans cesse." }
     - { tech: redis, verdict: ideal, why: "Cache, compteurs et listes (fil d'activité) en mémoire." }
@@ -52,13 +60,17 @@ verdicts:
     - { tech: aws, verdict: acceptable, why: "Permet une croissance très rapide sans acheter de matériel ; à très grande échelle, certaines entreprises migrent vers leurs propres datacenters." }
     - { tech: heroku, verdict: inadapte, why: "PaaS trop limité et trop coûteux pour des centaines de millions d'utilisateurs." }
     - { tech: vercel, verdict: inadapte, why: "Hébergement de fronts, pas du back-end d'une application mobile." }
+    - { tech: aws-lambda, verdict: acceptable, why: "Utile pour des traitements déclenchés par l'envoi d'une photo (miniatures) ; pas pour le back-end principal." }
   conteneurs-infra:
     - { tech: docker, verdict: acceptable, why: "Environnements reproductibles ; pas au cœur du besoin." }
     - { tech: kubernetes, verdict: acceptable, why: "Standardise le déploiement ; les très grandes entreprises ont souvent leur propre plateforme interne." }
+    - { tech: terraform, verdict: acceptable, why: "Infrastructure reproductible décrite en code ; utile, mais pas au cœur du besoin." }
+    - { tech: nginx, verdict: acceptable, why: "Reverse proxy et répartition de charge devant les serveurs d'application ; une brique utile, pas au cœur du besoin." }
   observabilite:
     - { tech: prometheus, verdict: ideal, why: "Métriques de charge et de latence, indispensables à cette croissance." }
     - { tech: grafana, verdict: ideal, why: "Tableaux de bord de charge pour l'équipe d'astreinte." }
     - { tech: sentry, verdict: acceptable, why: "Erreurs applicatives, mais pas les métriques de charge." }
+    - { tech: elasticsearch, verdict: acceptable, why: "Journaux centralisés et interrogeables ; ne remplace pas les métriques de charge." }
   ci-cd:
     - { tech: github-actions, verdict: acceptable, why: "Déploiements fréquents automatisés ; les très grandes entreprises ont souvent une CI interne." }
 antiPatterns:

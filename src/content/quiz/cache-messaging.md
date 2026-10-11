@@ -62,4 +62,14 @@ questions:
     answer: airflow
     decoy: celery
     why: "Celery exécute des tâches isolées. Un orchestrateur comme Airflow gère les dépendances entre étapes, les reprises et l'historique des exécutions."
+  - id: relances-taches-python
+    prompt: "Relancer automatiquement une tâche Python en échec, avec plusieurs tentatives"
+    answer: celery
+    decoy: rabbitmq
+    why: "Celery déclare les tâches en Python et gère les nouvelles tentatives ; il s'appuie sur un broker (RabbitMQ ou Redis) pour transporter les messages. RabbitMQ seul ne sait pas ce qu'est une tâche Python."
+  - id: lectures-repetees
+    prompt: "Soulager une base très sollicitée en gardant en mémoire les résultats les plus lus"
+    answer: redis
+    decoy: kafka
+    why: "Un cache en mémoire comme Redis sert les lectures répétées sans toucher la base. Kafka transporte des flux d'événements ; il ne sert pas des lectures par clé."
 ---
