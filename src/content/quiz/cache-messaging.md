@@ -72,4 +72,84 @@ questions:
     answer: redis
     decoy: kafka
     why: "Un cache en mémoire comme Redis sert les lectures répétées sans toucher la base. Kafka transporte des flux d'événements ; il ne sert pas des lectures par clé."
+  - id: sessions-entre-instances
+    prompt: "Partager les sessions utilisateur entre plusieurs instances d'une application web, avec expiration automatique"
+    answer: redis
+    decoy: kafka
+    why: "Redis stocke des clés en mémoire avec une durée de vie, lues par toutes les instances : c'est un usage classique. Kafka est un journal d'événements, pas un stockage qu'on lit par clé."
+  - id: compteur-atomique
+    prompt: "Incrémenter un compteur de vues à chaque affichage d'une page populaire, sans perdre d'incrément entre écritures concurrentes"
+    answer: redis
+    decoy: rabbitmq
+    why: "Redis propose des opérations atomiques en mémoire, comme l'incrément d'un compteur. RabbitMQ transporte des messages ; il ne garde aucune valeur à incrémenter."
+  - id: fragments-de-pages
+    prompt: "Garder en mémoire des fragments de pages sérialisés, répartis sur plusieurs serveurs de cache par les clients eux-mêmes"
+    answer: memcached
+    decoy: kafka
+    why: "Memcached stocke des valeurs opaques avec une durée de vie, et ce sont les clients qui choisissent le serveur d'une clé par hachage. Kafka conserve des flux d'événements, pas des valeurs relues par clé."
+  - id: nettoyage-nocturne-django
+    prompt: "Lancer chaque nuit une tâche de nettoyage dans une application Django, sans ajouter d'orchestrateur"
+    answer: celery
+    decoy: kafka
+    why: "Celery Beat planifie des tâches simples à côté de l'application Python. Kafka transporte des événements ; il ne planifie rien."
+  - id: photos-fastapi
+    prompt: "Redimensionner les photos téléversées dans une API FastAPI, sans faire attendre l'utilisateur"
+    answer: celery
+    decoy: airflow
+    why: "Celery sort les traitements lents du cycle requête-réponse d'une application Python, grâce à des workers. Airflow orchestre des pipelines de données planifiés, pas des tâches déclenchées à chaque requête."
+  - id: file-des-echecs
+    prompt: "Isoler dans une file dédiée les messages qui échouent à répétition"
+    answer: rabbitmq
+    decoy: memcached
+    why: "RabbitMQ peut router les messages en échec vers une file dédiée (dead-letter). Memcached est un cache clé-valeur : il ne gère ni files ni messages."
+  - id: donnees-de-facturation
+    prompt: "Stocker les factures des clients, qui ne doivent jamais être perdues"
+    answer: postgresql
+    decoy: redis
+    why: "PostgreSQL garantit des transactions ACID et une écriture durable. Redis garde ses données en mémoire et sa durabilité dépend de la configuration de persistance : ce n'est pas une base principale de données métier."
+  - id: reponses-api-tierce
+    prompt: "Garder quelques minutes les réponses d'une API tierce lente, pour ne pas la rappeler à chaque affichage"
+    answer: memcached
+    decoy: celery
+    why: "Un cache clé-valeur avec durée de vie comme Memcached sert les réponses déjà obtenues. Celery exécute des tâches en arrière-plan ; il ne garde pas de résultats à relire par clé."
+  - id: groupes-de-consommateurs-legers
+    prompt: "Une file légère, lue par plusieurs consommateurs, dans une petite application qui utilise déjà Redis"
+    answer: redis
+    decoy: kafka
+    why: "Redis propose des listes et des streams qui suffisent pour une file légère, sans nouvelle brique. Kafka est un système distribué lourd à opérer pour une petite application."
+  - id: journaux-de-nombreux-services
+    prompt: "Les journaux de dizaines de services, lus séparément par l'entrepôt, la détection de fraude et l'archivage"
+    answer: kafka
+    decoy: rabbitmq
+    why: "Kafka conserve un journal que chaque consommateur lit indépendamment, à sa position. RabbitMQ retire un message de sa file une fois acquitté : de nombreux consommateurs indépendants sur un très gros flux, c'est le terrain de Kafka."
+  - id: ordre-par-compte
+    prompt: "Traiter dans l'ordre les événements de chaque compte, sur un très gros flux réparti entre plusieurs consommateurs"
+    answer: kafka
+    decoy: celery
+    why: "Kafka garantit l'ordre au sein d'une partition : avec l'identifiant du compte comme clé, tous ses événements vont dans la même partition. Celery répartit des tâches entre workers sans garantir leur ordre."
+  - id: accuse-de-traitement
+    prompt: "Si un consommateur plante pendant un traitement, le message doit être redonné à un autre"
+    answer: rabbitmq
+    decoy: redis
+    why: "RabbitMQ ne retire un message qu'une fois acquitté, et le redistribue si le consommateur plante. Le pub/sub de Redis envoie le message aux abonnés présents, sans acquittement."
+  - id: mvp-sans-cache
+    prompt: "Les données d'un MVP à faible trafic, dont les pages s'affichent déjà vite"
+    answer: postgresql
+    decoy: redis
+    why: "Tant qu'aucun goulot n'est mesuré, la base principale suffit. Un cache comme Redis ajoute une brique et des problèmes d'invalidation avant d'en avoir besoin."
+  - id: chaine-de-taches-utilisateur
+    prompt: "Dans une application Python, enchaîner trois tâches de fond (télécharger, convertir, notifier) à chaque action d'un utilisateur"
+    answer: celery
+    decoy: airflow
+    why: "Celery gère les chaînes de tâches lancées par l'application, à la demande. Airflow orchestre des pipelines de données planifiés ; il n'est pas fait pour une chaîne déclenchée à chaque action d'un utilisateur."
+  - id: reagir-a-chaque-paiement
+    prompt: "Réagir dès qu'un paiement est publié, dans plusieurs services à la fois"
+    answer: kafka
+    decoy: airflow
+    why: "Les services consomment le topic Kafka en continu et réagissent à chaque événement. Airflow planifie des lots : ce n'est pas un bus d'événements."
+  - id: taches-rails
+    prompt: "Le broker des tâches de fond d'une application Ruby on Rails qui utilise Sidekiq"
+    answer: redis
+    decoy: celery
+    why: "Sidekiq, la file de tâches courante en Ruby, s'appuie sur Redis. Celery est la file de tâches de Python : il ne sert pas une application Ruby."
 ---

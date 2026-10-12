@@ -87,4 +87,69 @@ questions:
     answer: nodejs
     decoy: django
     why: "La boucle d'événements de Node.js traite de nombreuses connexions dans un seul processus, en JavaScript comme le front. Django gère l'asynchrone, mais ce n'est pas son modèle d'origine."
+  - id: servir-un-modele-ml
+    prompt: "Exposer un modèle de machine learning entraîné en Python sous forme de service web"
+    answer: fastapi
+    decoy: spring-boot
+    why: "FastAPI est un choix courant pour servir un modèle de ML : même langage que l'entraînement, validation et documentation générées. Spring Boot imposerait la JVM et un pont vers le code Python."
+  - id: meme-langage-que-le-front
+    prompt: "Un back-end structuré en modules et services, écrit dans le même langage que le front TypeScript"
+    answer: nestjs
+    decoy: fastapi
+    why: "NestJS est un back-end Node.js en TypeScript, avec modules et injection de dépendances. FastAPI est en Python : le langage ne serait plus partagé avec le front."
+  - id: widget-dans-d-autres-sites
+    prompt: "Un widget léger à intégrer dans les pages d'autres sites"
+    answer: svelte
+    decoy: nextjs
+    why: "Svelte compile les composants et n'embarque qu'un runtime minimal : un bon profil pour un widget. Next.js bâtit une application web complète, avec routage et rendu serveur."
+  - id: plus-large-ecosysteme
+    prompt: "Une interface web pour laquelle on veut le plus large choix de bibliothèques de composants et de développeurs à recruter"
+    answer: react
+    decoy: svelte
+    why: "React a l'écosystème le plus large et le recrutement le plus facile. Svelte est plus léger, mais son choix de bibliothèques et de développeurs est plus restreint."
+  - id: equipe-venue-de-java
+    prompt: "Un outil métier riche en formulaires, pour une équipe venue de Java habituée aux classes et à l'injection de dépendances"
+    answer: angular
+    decoy: vue
+    why: "Angular fournit formulaires avec validation et injection de dépendances, en TypeScript : un cadre familier pour une équipe Java. Vue mise sur une prise en main rapide, sans ce cadre imposé."
+  - id: pages-rendues-python
+    prompt: "Une application CRUD en Python, aux pages HTML rendues côté serveur, sans application front séparée"
+    answer: django
+    decoy: react
+    why: "Les gabarits de Django rendent les pages côté serveur, avec ORM et formulaires fournis. Ajouter React obligerait à maintenir une seconde application."
+  - id: peu-de-javascript-ruby
+    prompt: "Une application Ruby aux interfaces réactives, avec très peu de JavaScript"
+    answer: ruby-on-rails
+    decoy: nextjs
+    why: "Avec Hotwire (Turbo et Stimulus), Rails rend les interfaces réactives avec très peu de JavaScript. Next.js est un framework React, entièrement en JavaScript."
+  - id: api-en-fonctions-serverless
+    prompt: "Une petite API JavaScript déployée en fonctions serverless qui démarrent souvent"
+    answer: express
+    decoy: spring-boot
+    why: "Express est une couche fine au-dessus de Node.js, adaptée à une petite API. Le démarrage et la mémoire de la JVM pèsent sur Spring Boot quand les fonctions démarrent souvent, sauf compilation native."
+  - id: calcul-dans-les-requetes
+    prompt: "Une API JSON dont chaque requête fait un calcul intensif"
+    answer: gin
+    decoy: nodejs
+    why: "En Go, Gin traite chaque requête dans une goroutine : un calcul long n'empêche pas les autres requêtes d'avancer. Sous Node.js, il bloque la boucle d'événements et toutes les requêtes du processus."
+  - id: equipe-sans-javascript
+    prompt: "Une application iOS et Android pour une équipe sans culture JavaScript, prête à apprendre un nouveau langage"
+    answer: flutter
+    decoy: react-native
+    why: "Flutter s'écrit en Dart, sans lien avec JavaScript. React Native repose sur React, donc sur JavaScript : son principal atout est perdu pour cette équipe."
+  - id: microservices-kotlin
+    prompt: "Des microservices pour une équipe Kotlin, avec santé et métriques exposées pour l'exploitation"
+    answer: spring-boot
+    decoy: gin
+    why: "Spring Boot vise la JVM, donc Java comme Kotlin, et son Actuator expose santé et métriques. Gin est un framework Go."
+  - id: hebergement-php-en-place
+    prompt: "Une application de gestion à livrer chez un client qui dispose déjà d'un hébergement PHP"
+    answer: laravel
+    decoy: django
+    why: "Laravel est le framework complet de PHP et s'installe sur l'hébergement existant. Django demanderait un environnement Python à mettre en place."
+  - id: interface-derriere-connexion
+    prompt: "Une interface purement client derrière une page de connexion, sans besoin de référencement"
+    answer: react
+    decoy: nextjs
+    why: "Sans SEO ni premier affichage critique, React avec un outil de build simple suffit. Le rendu serveur de Next.js et sa frontière entre composants serveur et client ajoutent une complexité inutile ici."
 ---

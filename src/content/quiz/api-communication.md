@@ -67,4 +67,89 @@ questions:
     answer: redis
     decoy: memcached
     why: "Chaque instance ne connaît que ses propres connexions : le pub/sub de Redis relaie le message à toutes. Memcached n'a pas de pub/sub."
+  - id: export-pret
+    prompt: "Prévenir instantanément l'utilisateur, dans son navigateur, que son export est prêt"
+    answer: websocket
+    decoy: grpc
+    why: "Sur une connexion WebSocket ouverte, le serveur pousse la notification dès que l'export est terminé. Le navigateur ne parle pas gRPC nativement : il faudrait gRPC-Web et un proxy."
+  - id: debogage-avec-curl
+    prompt: "Une API que les développeurs testent et déboguent à la main, en lisant les réponses"
+    answer: rest
+    decoy: grpc
+    why: "Une API REST renvoie en général du JSON lisible, qu'on interroge avec curl ou le navigateur. Les messages binaires de gRPC ne se lisent pas sans outils dédiés."
+  - id: edition-collaborative
+    prompt: "Un éditeur de documents où chacun voit en direct les modifications des autres"
+    answer: websocket
+    decoy: kafka
+    why: "WebSocket garde une connexion bidirectionnelle avec chaque navigateur pour envoyer et recevoir les modifications. Kafka relie des services entre eux ; il ne parle pas aux navigateurs."
+  - id: passerelle-devant-services
+    prompt: "Une passerelle unique que le front interroge pour obtenir en une requête des données venant de plusieurs services"
+    answer: graphql
+    decoy: grpc
+    why: "GraphQL sert souvent de couche d'agrégation devant plusieurs back-ends, et le client y choisit ses champs. gRPC relie les services entre eux, mais le navigateur ne le parle pas nativement."
+  - id: documentation-et-clients-generes
+    prompt: "Décrire une API dans un format standard, pour en générer la documentation et les clients des partenaires"
+    answer: rest
+    decoy: websocket
+    why: "Le format OpenAPI décrit une API REST et permet d'en générer documentation et clients. WebSocket ouvre une connexion où circulent des messages libres, sans ce contrat de ressources et de méthodes."
+  - id: instances-interchangeables
+    prompt: "Ajouter des instances de l'API derrière un répartiteur, sans se soucier de l'instance à laquelle chaque client parle"
+    answer: rest
+    decoy: websocket
+    why: "En REST, le serveur ne garde pas d'état de session entre deux requêtes : n'importe quelle instance peut répondre. Une connexion WebSocket a un état, gardé en mémoire par l'instance qui la tient."
+  - id: fonctions-a-duree-limitee
+    prompt: "Une API hébergée sur des fonctions serverless à durée d'exécution limitée"
+    answer: rest
+    decoy: websocket
+    why: "Chaque requête REST est traitée puis terminée, ce qui convient à une fonction courte. Une connexion WebSocket persistante demande un processus de longue durée, ou un service managé dédié."
+  - id: reagir-sans-etre-appele
+    prompt: "Quand une commande est passée, le stock, la facturation et l'analytique réagissent chacun de leur côté, sans que le service des commandes les appelle"
+    answer: kafka
+    decoy: grpc
+    why: "Le service des commandes publie l'événement dans un topic Kafka et chaque service le consomme à son rythme. Avec gRPC, il devrait appeler lui-même chaque service et connaître leur liste."
+  - id: worker-qui-plante
+    prompt: "Confier des traitements à un groupe de workers : si l'un plante en cours de route, son travail est confié à un autre"
+    answer: rabbitmq
+    decoy: grpc
+    why: "Dans RabbitMQ, un message non acquitté est redistribué à un autre consommateur. Un appel gRPC est direct : si le service plante, l'appelant reçoit une erreur et doit gérer lui-même la reprise."
+  - id: messages-en-echec
+    prompt: "Mettre de côté les messages qui échouent à répétition, pour les analyser plus tard"
+    answer: rabbitmq
+    decoy: rest
+    why: "RabbitMQ peut envoyer les messages en échec dans une file dédiée (dead-letter). Un appel REST en échec est perdu si l'appelant ne le conserve pas lui-même."
+  - id: champs-inutiles-mobile
+    prompt: "Une application mobile sur réseau lent qui ne veut recevoir que les champs qu'elle affiche"
+    answer: graphql
+    decoy: rest
+    why: "En GraphQL, la requête décrit exactement les champs voulus et la réponse ne contient rien d'autre. Un endpoint REST renvoie sa représentation complète, souvent avec des champs inutiles."
+  - id: reponse-immediate-entre-services
+    prompt: "Un service interne doit obtenir immédiatement la réponse d'un autre, avec des messages compacts et typés"
+    answer: grpc
+    decoy: kafka
+    why: "gRPC fait un appel direct, avec réponse, en messages binaires définis par un contrat .proto. Kafka découple producteurs et consommateurs : il n'y a pas de réponse immédiate à attendre."
+  - id: jeu-multijoueur-navigateur
+    prompt: "Un jeu multijoueur dans le navigateur, où les actions des joueurs s'échangent en continu dans les deux sens"
+    answer: websocket
+    decoy: grpc
+    why: "WebSocket est fait pour une connexion bidirectionnelle persistante avec le navigateur. gRPC sait faire du streaming dans les deux sens, mais entre services : le navigateur ne le parle pas nativement."
+  - id: abonne-deconnecte
+    prompt: "Un service arrêté une journée doit retrouver, à son retour, tous les événements publiés pendant son absence"
+    answer: kafka
+    decoy: redis
+    why: "Kafka conserve les messages selon sa durée de rétention, et chaque consommateur reprend à sa position de lecture. Le pub/sub de Redis ne délivre un message qu'aux abonnés connectés à ce moment-là."
+  - id: types-du-front-generes
+    prompt: "Générer les types du front à partir d'un schéma qui décrit toutes les données exposées et leurs relations"
+    answer: graphql
+    decoy: websocket
+    why: "Le schéma typé de GraphQL sert de contrat et de documentation, et l'outillage en génère des types pour le front. WebSocket transporte des messages sans imposer de schéma."
+  - id: lisser-un-pic
+    prompt: "Absorber un pic de demandes : le front les dépose, un service les traite à son rythme"
+    answer: rabbitmq
+    decoy: rest
+    why: "Les messages s'accumulent dans la file de RabbitMQ et les consommateurs les traitent à leur rythme. En appel REST direct, le service doit tout absorber au moment du pic, ou les requêtes échouent."
+  - id: champs-ajoutes-sans-version
+    prompt: "Faire évoluer une API mobile en ajoutant des champs, sans multiplier les versions d'endpoints"
+    answer: graphql
+    decoy: rest
+    why: "En GraphQL, chaque client ne reçoit que les champs qu'il demande : un champ ajouté au schéma ne change rien pour les anciens. En REST, changer la représentation d'une ressource pousse souvent à créer une nouvelle version."
 ---

@@ -92,4 +92,64 @@ questions:
     answer: clickhouse
     decoy: postgresql
     why: "ClickHouse range les données par colonne et agrège vite de gros volumes d'événements à mesure qu'ils arrivent. PostgreSQL stocke par lignes et vise le transactionnel."
+  - id: fragments-de-pages-en-memoire
+    prompt: "Garder en mémoire des fragments de pages déjà calculés pour soulager la base, sans besoin de persistance"
+    answer: memcached
+    decoy: cassandra
+    why: "Memcached est un cache clé-valeur en mémoire, avec durée de vie et éviction, fait pour soulager une base. Cassandra est une base distribuée persistante, conçue pour stocker durablement des écritures massives."
+  - id: classement-temps-reel
+    prompt: "Un classement des meilleurs joueurs, mis à jour à chaque partie"
+    answer: redis
+    decoy: memcached
+    why: "Redis fournit des ensembles triés, avec des opérations atomiques, qui font un classement prêt à l'emploi. Memcached ne stocke que des paires clé-valeur, sans structures de données."
+  - id: base-wordpress
+    prompt: "La base d'un site WordPress chez un hébergeur classique"
+    answer: mysql
+    decoy: mongodb
+    why: "WordPress s'appuie sur MySQL, que les hébergeurs fournissent depuis l'époque de la pile LAMP. MongoDB est une base de documents, sans SQL."
+  - id: geospatial-et-vecteurs
+    prompt: "Une base relationnelle enrichie d'extensions : géospatial poussé, recherche vectorielle, types avancés"
+    answer: postgresql
+    decoy: mysql
+    why: "PostgreSQL est très extensible et mieux pourvu en types avancés, SQL analytique et extensions. MySQL vise plutôt l'application web classique."
+  - id: modele-encore-instable
+    prompt: "Un produit jeune dont les requêtes changent chaque semaine, avec des filtres variés"
+    answer: postgresql
+    decoy: cassandra
+    why: "PostgreSQL accepte n'importe quelle requête SQL sur un schéma qui évolue par migrations. Avec Cassandra, on conçoit une table par requête : chaque nouvelle requête peut imposer une nouvelle table et une migration des données."
+  - id: commandes-modifiees-une-a-une
+    prompt: "La base transactionnelle d'une boutique PHP, où chaque commande est modifiée individuellement"
+    answer: mysql
+    decoy: clickhouse
+    why: "MySQL (moteur InnoDB) offre transactions ACID et verrouillage par ligne, et accompagne PHP depuis longtemps. Dans ClickHouse, les mises à jour unitaires sont coûteuses et il n'y a pas de transactions comparables."
+  - id: analyse-ponctuelle-portable
+    prompt: "Une analyse ponctuelle de quelques gigaoctets de journaux exportés, sur son portable"
+    answer: duckdb
+    decoy: clickhouse
+    why: "DuckDB tourne dans le processus qui l'appelle, sans serveur, et suffit pour des données qui tiennent sur une machine. ClickHouse est un serveur à opérer, conçu pour une analytique continue sur de gros volumes."
+  - id: entrepot-plusieurs-clouds
+    prompt: "Un entrepôt de données qui peut tourner au choix sur AWS, Azure ou Google Cloud"
+    answer: snowflake
+    decoy: bigquery
+    why: "Snowflake est proposé sur les trois grands clouds, ce qui évite de lier l'entrepôt à un seul fournisseur. BigQuery est le service natif de Google Cloud."
+  - id: documents-sans-fournisseur
+    prompt: "Une base de documents JSON qu'on peut faire tourner chez n'importe quel hébergeur ou sur ses serveurs"
+    answer: mongodb
+    decoy: dynamodb
+    why: "MongoDB s'installe partout, avec une offre managée en option. L'API de DynamoDB est propre à AWS : on dépend du fournisseur."
+  - id: sharding-fourni-par-la-base
+    prompt: "Répartir des documents sur de nombreux serveurs avec un partitionnement fourni par la base elle-même"
+    answer: mongodb
+    decoy: mysql
+    why: "MongoDB intègre le sharding et la réplication. MySQL réplique simplement, mais répartir ses données sur de nombreux serveurs demande un outil ajouté par-dessus, comme Vitess."
+  - id: prototype-relationnel-heberge
+    prompt: "Un back-end hébergé pour un prototype mobile, en gardant une vraie base relationnelle"
+    answer: supabase
+    decoy: dynamodb
+    why: "Supabase fournit une base PostgreSQL, l'authentification et une API générée, prêtes à l'emploi. DynamoDB est une base clé-valeur et document : ni relationnelle, ni livrée avec l'authentification."
+  - id: application-de-bureau
+    prompt: "Les données transactionnelles d'une application de bureau, enregistrées dans un fichier local"
+    answer: sqlite
+    decoy: duckdb
+    why: "SQLite est une base relationnelle embarquée faite pour les données d'une application. DuckDB est aussi embarqué, mais vise l'analytique, pas le transactionnel."
 ---

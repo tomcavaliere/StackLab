@@ -77,4 +77,144 @@ questions:
       - "Quand les données doivent survivre à un redémarrage du serveur"
       - "Pour diffuser des notifications en pub/sub aux clients connectés, avec historique"
     why: "Memcached ne fait que du clé-valeur en mémoire, multithreadé et très simple. Persistance et pub/sub sont justement des fonctions de Redis."
+  - id: expire
+    prompt: "Quelle commande Redis donne une durée de vie à une clé existante, sans modifier sa valeur ?"
+    answer: "EXPIRE"
+    decoys:
+      - "PERSIST"
+      - "SETEX"
+      - "RENAME"
+    why: "EXPIRE fixe un délai d'expiration sur une clé existante. PERSIST fait l'inverse (retire la durée de vie) et SETEX réécrit la valeur en même temps."
+  - id: ttl-moins-un
+    prompt: "La commande TTL renvoie -1 pour une clé Redis. Qu'est-ce que cela signifie ?"
+    answer: "La clé existe mais n'a pas de durée de vie"
+    decoys:
+      - "La clé n'existe pas, ou a déjà été supprimée"
+      - "La clé expire dans moins d'une seconde et sera supprimée au prochain cycle"
+    why: "TTL renvoie -1 pour une clé sans expiration et -2 pour une clé absente. Une valeur positive donne les secondes restantes."
+  - id: incr-atomique
+    prompt: "Pourquoi INCR convient-il à un compteur partagé par plusieurs serveurs d'application ?"
+    answer: "L'incrément est atomique côté serveur"
+    decoys:
+      - "Il verrouille la clé jusqu'à la fin de la transaction SQL du client"
+      - "Chaque client garde un compteur local, fusionné régulièrement par Redis"
+    why: "INCR lit, incrémente et écrit en une seule opération exécutée par le serveur : deux clients ne peuvent pas perdre une mise à jour. Il n'y a ni transaction SQL ni fusion de compteurs locaux."
+  - id: execution-commandes
+    prompt: "Comment le serveur Redis exécute-t-il les commandes des clients ?"
+    answer: "Une à une, sur un fil d'exécution principal"
+    decoys:
+      - "En parallèle sur tous les cœurs, avec un verrou par clé"
+      - "Dans des transactions isolées par MVCC, comme PostgreSQL, sur plusieurs cœurs"
+    why: "Redis exécute les commandes séquentiellement sur un fil principal, ce qui rend chaque commande atomique. Une commande lente bloque donc toutes les autres ; pas de MVCC à la PostgreSQL."
+  - id: scan
+    prompt: "Quelle commande parcourt les clés Redis par lots, sans bloquer le serveur comme KEYS * ?"
+    answer: "SCAN"
+    decoys:
+      - "MONITOR"
+      - "DUMP"
+      - "LRANGE"
+    why: "SCAN itère par petits lots avec un curseur. KEYS * parcourt tout l'espace de clés d'un coup et bloque le serveur ; MONITOR affiche les commandes, DUMP sérialise une clé, LRANGE lit une liste."
+  - id: aof
+    prompt: "Comment s'appelle la persistance Redis qui journalise chaque écriture ?"
+    answer: "AOF (append-only file)"
+    decoys:
+      - "RDB (instantanés périodiques)"
+      - "WAL (write-ahead log partagé)"
+    why: "L'AOF rejoue le journal des écritures au redémarrage. RDB est l'autre mode, par instantanés périodiques ; WAL est le vocabulaire de PostgreSQL."
+  - id: maxmemory
+    prompt: "Que fait Redis quand la limite maxmemory est atteinte ?"
+    answer: "Il applique la politique d'éviction configurée"
+    decoys:
+      - "Il déplace le surplus sur disque et continue à servir depuis le disque"
+      - "Il redémarre et vide toutes les clés pour libérer la mémoire"
+    why: "Le paramètre maxmemory-policy décide : évincer des clés (LRU, LFU, aléatoire, parmi celles qui expirent…) ou refuser les écritures. Redis ne bascule pas sur disque."
+  - id: noeviction
+    prompt: "Avec la politique noeviction, que se passe-t-il quand la mémoire de Redis est pleine ?"
+    answer: "Les écritures renvoient une erreur"
+    decoys:
+      - "Les clés les moins récemment utilisées sont supprimées"
+      - "Les clés sans durée de vie sont déplacées dans un fichier d'échange"
+    why: "noeviction ne supprime rien : les commandes qui ajoutent des données échouent, les lectures continuent. Supprimer les moins récemment utilisées, c'est allkeys-lru."
+  - id: streams-groupes
+    prompt: "Quelle structure Redis propose des groupes de consommateurs avec acquittement des messages ?"
+    answer: "Les streams"
+    decoys:
+      - "Le pub/sub"
+      - "Les ensembles (sets)"
+      - "Les hashes"
+    why: "Les streams conservent les messages et gèrent des groupes de consommateurs avec XACK. Le pub/sub ne garde rien et n'a pas d'acquittement."
+  - id: profil-hash
+    prompt: "Quelle structure Redis choisir pour stocker les champs d'un profil utilisateur sous une seule clé ?"
+    answer: "Un hash"
+    decoys:
+      - "Un ensemble trié"
+      - "Une liste"
+      - "Un HyperLogLog"
+    why: "Un hash associe des champs à des valeurs, qu'on lit ou modifie un par un. L'ensemble trié ordonne par score, la liste par insertion, l'HyperLogLog ne fait qu'estimer des cardinalités."
+  - id: hyperloglog
+    prompt: "À quoi sert un HyperLogLog dans Redis ?"
+    answer: "Estimer un nombre d'éléments distincts"
+    decoys:
+      - "Trier des membres par score avec une précision exacte"
+      - "Stocker un journal d'événements consommé par des groupes"
+    why: "L'HyperLogLog estime, avec une petite erreur et très peu de mémoire, combien d'éléments distincts on a vus (visiteurs uniques). Le tri par score, c'est l'ensemble trié ; le journal, le stream."
+  - id: blpop
+    prompt: "Quelle commande Redis fait attendre le client jusqu'à ce qu'un élément arrive dans une liste ?"
+    answer: "BLPOP"
+    decoys:
+      - "LPUSH"
+      - "LRANGE"
+      - "SUBSCRIBE"
+    why: "BLPOP retire le premier élément d'une liste et bloque s'il n'y en a pas : c'est la base des files de tâches sur Redis. LPUSH ajoute, LRANGE lit sans retirer, SUBSCRIBE écoute un canal pub/sub."
+  - id: multi-exec
+    prompt: "Que garantit un bloc MULTI / EXEC dans Redis ?"
+    answer: "Les commandes passent d'un bloc, sans commande d'un autre client intercalée"
+    decoys:
+      - "Un retour arrière automatique de tout le bloc si l'une des commandes échoue à l'exécution"
+      - "Une écriture synchrone sur disque de toutes les commandes avant de répondre"
+    why: "EXEC exécute les commandes en file d'un seul tenant. Redis ne fait pas de rollback si une commande échoue en cours de route, et la durabilité dépend toujours de la persistance configurée."
+  - id: set-nx
+    prompt: "Quelle option de la commande SET n'écrit la clé que si elle n'existe pas encore ?"
+    answer: "NX"
+    decoys:
+      - "XX"
+      - "KEEPTTL"
+      - "GET"
+    why: "SET ... NX n'écrit que si la clé est absente, ce qui sert notamment aux verrous simples. XX fait l'inverse (seulement si elle existe), KEEPTTL conserve la durée de vie, GET renvoie l'ancienne valeur."
+  - id: port
+    prompt: "Quel est le port par défaut de Redis ?"
+    answer: "6379"
+    decoys:
+      - "5432"
+      - "11211"
+      - "27017"
+    why: "Redis écoute par défaut sur 6379. 5432 est le port de PostgreSQL, 11211 celui de Memcached, 27017 celui de MongoDB."
+  - id: sentinel
+    prompt: "À quoi sert Redis Sentinel ?"
+    answer: "Surveiller un primaire et promouvoir une réplique s'il tombe"
+    decoys:
+      - "Répartir les clés entre plusieurs primaires selon des slots de hachage"
+      - "Chiffrer les échanges entre les clients et le serveur Redis"
+    why: "Sentinel assure la haute disponibilité d'un primaire et de ses répliques par bascule automatique. La répartition par slots, c'est Redis Cluster ; le chiffrement passe par TLS."
+  - id: cluster-slots
+    prompt: "Comment Redis Cluster répartit-il les clés entre ses nœuds ?"
+    answer: "Par 16 384 slots de hachage attribués aux primaires"
+    decoys:
+      - "Par ordre alphabétique des clés, une plage par nœud"
+      - "Par le client seul, sans que les nœuds se connaissent, comme Memcached"
+    why: "Chaque clé est hachée vers l'un des 16 384 slots, et chaque primaire en possède une partie. Les nœuds se connaissent et redirigent le client si besoin, contrairement à Memcached."
+  - id: createur
+    prompt: "Qui a créé Redis, et quand ?"
+    answer: "Salvatore Sanfilippo, en 2009"
+    decoys:
+      - "Brad Fitzpatrick, en 2003"
+      - "Jay Kreps, en 2011"
+    why: "Salvatore Sanfilippo (antirez) a lancé Redis en 2009. Brad Fitzpatrick a créé Memcached, Jay Kreps a co-créé Kafka chez LinkedIn."
+  - id: cache-aside
+    prompt: "En cache-aside, que fait l'application quand la clé demandée est absente de Redis ?"
+    answer: "Elle lit la base, puis écrit le résultat dans Redis"
+    decoys:
+      - "Elle attend que Redis aille chercher lui-même la donnée en base"
+      - "Elle renvoie une erreur jusqu'au prochain préchargement complet du cache"
+    why: "Dans ce schéma, c'est l'application qui gère le cache : en cas d'absence, elle interroge la base et remplit Redis. Redis ne connaît pas la base et ne va rien y chercher."
 ---

@@ -92,4 +92,64 @@ questions:
     answer: elasticsearch
     decoy: prometheus
     why: "Elasticsearch indexe le texte des journaux et permet de les fouiller (pile ELK). Prometheus collecte des métriques numériques, pas des lignes de journaux."
+  - id: dependances-en-local
+    prompt: "Lancer en local la base et le cache d'un projet, sans les installer sur le poste"
+    answer: docker
+    decoy: terraform
+    why: "Docker (avec Compose) démarre la base et le cache en conteneurs sur le poste. Terraform crée des ressources dans un cloud ; il ne lance rien en local."
+  - id: meme-plateforme-partout
+    prompt: "Une même plateforme pour déployer des conteneurs sur plusieurs clouds et sur ses propres serveurs"
+    answer: kubernetes
+    decoy: aws-lambda
+    why: "Kubernetes est devenu une interface standard, proposée par tous les grands clouds et installable chez soi. Lambda est un service propre à AWS, qui exécute des fonctions."
+  - id: environnements-cloud-identiques
+    prompt: "Garder identiques les réseaux, bases et DNS des environnements de préproduction et de production d'un compte cloud"
+    answer: terraform
+    decoy: docker
+    why: "Terraform décrit les ressources cloud dans des fichiers et recrée chaque environnement à l'identique. Docker rend l'application identique partout, mais ne crée ni réseaux, ni bases managées, ni DNS."
+  - id: deploiement-a-la-fusion
+    prompt: "Déployer automatiquement à chaque fusion sur la branche principale d'un dépôt GitHub"
+    answer: github-actions
+    decoy: terraform
+    why: "GitHub Actions déclenche des workflows sur les événements du dépôt, fusion comprise. Terraform peut être une étape du déploiement, mais il ne se déclenche pas seul."
+  - id: front-sans-configurer-cdn
+    prompt: "Mettre en ligne un front moderne avec CDN mondial et HTTPS, sans configurer de build ni de certificats"
+    answer: vercel
+    decoy: nginx
+    why: "Vercel construit à chaque push et sert les pages depuis un réseau mondial, certificats compris. Nginx peut servir un build statique, mais sur une machine qu'on configure et maintient soi-même."
+  - id: api-trafic-irregulier
+    prompt: "Une petite API au trafic faible et irrégulier, qui ne doit rien coûter quand personne ne l'appelle"
+    answer: aws-lambda
+    decoy: heroku
+    why: "Lambda est facturé au nombre d'appels et à leur durée : sans appel, rien à payer. Sur Heroku, les dynos tournent en permanence et les offres gratuites ont été supprimées fin 2022."
+  - id: donnees-brutes-data-lake
+    prompt: "Une zone d'atterrissage bon marché pour les fichiers bruts d'une plateforme data, en Parquet"
+    answer: aws-s3
+    decoy: elasticsearch
+    why: "S3 sert de data lake : un stockage bon marché que Spark, Snowflake ou DuckDB lisent directement. Elasticsearch indexe des documents pour la recherche ; ce n'est pas un stockage de fichiers bruts."
+  - id: metriques-et-sql-meme-ecran
+    prompt: "Afficher sur un même écran les métriques Prometheus et des chiffres tirés d'une base SQL"
+    answer: grafana
+    decoy: prometheus
+    why: "Grafana se connecte à des sources hétérogènes et les assemble en tableaux de bord. Prometheus stocke et interroge ses propres métriques, pas les données d'une base SQL."
+  - id: stocker-les-series-temporelles
+    prompt: "Collecter et stocker les métriques que chaque service expose sur une URL /metrics"
+    answer: prometheus
+    decoy: grafana
+    why: "Prometheus interroge régulièrement ces URL et stocke des séries temporelles étiquetées. Grafana ne stocke pas les métriques : il interroge des sources comme Prometheus."
+  - id: ligne-qui-plante
+    prompt: "Savoir quelle ligne de code a fait planter l'application et combien d'utilisateurs sont touchés"
+    answer: sentry
+    decoy: grafana
+    why: "Sentry capture chaque exception avec sa pile d'appels et son contexte, puis regroupe les occurrences. Grafana affiche des métriques et des journaux, pas le détail d'une exception."
+  - id: identite-sans-acces-exterieur
+    prompt: "Un serveur d'identité déployé dans un réseau interne totalement coupé d'Internet"
+    answer: keycloak
+    decoy: auth0
+    why: "Keycloak est open-source et s'installe sur ses propres serveurs. Auth0 est un service hébergé par un tiers : les applications doivent pouvoir le joindre."
+  - id: back-end-appele-a-grandir
+    prompt: "Un back-end Java avec base relationnelle managée, cache et files de messages, appelé à grandir"
+    answer: aws
+    decoy: vercel
+    why: "AWS propose bases managées, caches, files et calcul pour un back-end de longue durée. Vercel vise les fronts JavaScript et des fonctions serverless à durée d'exécution limitée."
 ---
