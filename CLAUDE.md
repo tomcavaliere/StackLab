@@ -69,6 +69,8 @@ src/
     api/progress.ts      GET : XP, niveau, série, maîtrise par thème et par techno, badges, confusions
   layouts/Base.astro
 scripts/check-content.mjs    ce que Zod ne voit pas : sections imposées des fiches, quiz de techno sans fiche (erreur), fiche sans quiz (avertissement)
+scripts/check-quality.mjs    hors build : cartes sans verdict par scénario (`verdicts`), bonne réponse trop souvent la plus longue (`lengths [ids]`)
+.claude/skills/              nouvelle-fiche, quiz-techno, quiz-theme : procédures de rédaction pas à pas
 data/stacklab.db             base locale, ignorée par git
 ```
 
