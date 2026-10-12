@@ -72,6 +72,7 @@ verdicts:
     - { tech: spark, verdict: ideal, why: "Traitements distribués sur des années d'historique, en SQL comme en Python." }
     - { tech: dbt, verdict: acceptable, why: "Très bien pour les transformations SQL ; une partie des traitements (événements, ML) dépasse le SQL d'entrepôt." }
     - { tech: duckdb, verdict: inadapte, why: "Une seule machine : insuffisant pour ces volumes." }
+    - { tech: pandas, verdict: inadapte, why: "Tient en mémoire sur une seule machine : insuffisant pour des années d'historique, utile seulement pour l'exploration ou de petits jeux de données." }
   orchestration:
     - { tech: airflow, verdict: ideal, why: "Graphes de tâches planifiées avec dépendances et reprises, exactement le besoin des traitements quotidiens." }
     - { tech: dagster, verdict: acceptable, why: "Mêmes garanties, centré sur les assets ; moins répandu, et une migration coûteuse si un orchestrateur existe déjà." }

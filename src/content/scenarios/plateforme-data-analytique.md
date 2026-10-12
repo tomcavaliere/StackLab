@@ -27,6 +27,7 @@ verdicts:
     - { tech: dbt, verdict: ideal, why: "Des indicateurs écrits en SQL, testés et documentés dans l'entrepôt : une seule définition du chiffre d'affaires pour tout le monde." }
     - { tech: duckdb, verdict: acceptable, why: "Transformations rapides sur une machine ; il faut organiser soi-même le partage des résultats." }
     - { tech: spark, verdict: surdimensionne, why: "Un cluster à opérer pour des transformations quotidiennes que le SQL de l'entrepôt exprime très bien." }
+    - { tech: pandas, verdict: surdimensionne, why: "Tient en mémoire sur une seule machine : un historique de l'ordre du téraoctet n'y passe pas, et la logique serait écrite en Python plutôt que dans des modèles SQL partagés." }
   orchestration:
     - { tech: airflow, verdict: ideal, why: "Chargement nocturne en plusieurs étapes, avec dépendances, relance des échecs et historique : exactement son rôle." }
     - { tech: dagster, verdict: ideal, why: "Les mêmes garanties, avec en plus la lignée et la fraîcheur de chaque table, et une très bonne intégration à dbt." }

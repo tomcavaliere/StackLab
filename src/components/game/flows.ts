@@ -41,6 +41,7 @@ function helpers(cards: Card[], techs: Map<string, TechInfo>) {
     first: (layer: Layer) => cards.find((c) => c.layer === layer),
     all: (layer: Layer) => cards.filter((c) => c.layer === layer),
     isStream: (c: Card) => tech(c).tags.includes('streaming'),
+    isVector: (c: Card) => tech(c).tags.includes('vectoriel'),
     name: (c: Card) => tech(c).name,
     role: (c: Card) => `${tech(c).name} : ${tech(c).summary}`,
     about: (c: Card) => tech(c).summary,
@@ -48,7 +49,7 @@ function helpers(cards: Card[], techs: Map<string, TechInfo>) {
 }
 
 function requestFlow(cards: Card[], techs: Map<string, TechInfo>): Step[] {
-  const { first, all, isStream, name, role } = helpers(cards, techs);
+  const { first, all, isStream, isVector, name, role } = helpers(cards, techs);
   const front = first('frontend') ?? first('mobile');
   const api = first('backend-api');
   const auth = first('auth');
@@ -80,6 +81,15 @@ function requestFlow(cards: Card[], techs: Map<string, TechInfo>): Step[] {
   }
   if (cache) steps.push({ from: prev, to: nodeId(cache), caption: `On cherche d'abord dans le cache, pour épargner la base. ${role(cache)}` });
   for (const db of dbs) steps.push({ from: prev, to: nodeId(db), caption: `Lecture ou écriture des données métier. ${role(db)}` });
+  if (api) {
+    const vectors = all('ml').find(isVector);
+    const model = all('ml').find((c) => !isVector(c));
+    if (vectors) steps.push({ from: prev, to: nodeId(vectors), caption: `On cherche les passages les plus proches de la question, par similarité de vecteurs. ${role(vectors)}` });
+    if (model) {
+      const caption = vectors ? `Le modèle reçoit la question et les passages trouvés, et rédige la réponse. ${role(model)}` : `L'API fait appel au modèle. ${role(model)}`;
+      steps.push({ from: prev, to: nodeId(model), caption });
+    }
+  }
   if (events) {
     steps.push({ from: prev, to: nodeId(events), caption: `Un événement est publié pour les autres services, qui le traiteront à leur rythme. ${role(events)}` });
   }
