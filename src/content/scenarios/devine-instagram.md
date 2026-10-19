@@ -71,6 +71,7 @@ verdicts:
     - { tech: grafana, verdict: ideal, why: "Tableaux de bord de charge pour l'équipe d'astreinte." }
     - { tech: sentry, verdict: acceptable, why: "Erreurs applicatives, mais pas les métriques de charge." }
     - { tech: elasticsearch, verdict: acceptable, why: "Journaux centralisés et interrogeables ; ne remplace pas les métriques de charge." }
+    - { tech: langfuse, verdict: inadapte, why: "Observabilité des applications de LLM, sans rapport avec la surveillance d'une application de partage de photos." }
   ci-cd:
     - { tech: github-actions, verdict: acceptable, why: "Déploiements fréquents automatisés ; les très grandes entreprises ont souvent une CI interne." }
 antiPatterns:

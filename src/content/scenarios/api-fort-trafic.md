@@ -60,6 +60,7 @@ verdicts:
     - { tech: grafana, verdict: ideal, why: "Les pics visibles en direct pour l'équipe d'astreinte." }
     - { tech: sentry, verdict: acceptable, why: "Utile pour les erreurs applicatives, mais ne montre ni la saturation ni la latence globale." }
     - { tech: elasticsearch, verdict: acceptable, why: "Centralise et fouille les journaux de tous les services ; ne remplace ni les métriques ni les alertes de latence." }
+    - { tech: langfuse, verdict: inadapte, why: "Trace les appels à des modèles de langage, alors que cette API n'en fait aucun : ses besoins sont des métriques, des journaux et des erreurs." }
   ci-cd:
     - { tech: github-actions, verdict: ideal, why: "Des déploiements fréquents et automatisés, indispensables à 15 développeurs sur plusieurs services." }
   auth:

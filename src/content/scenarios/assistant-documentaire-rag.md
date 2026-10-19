@@ -54,6 +54,12 @@ verdicts:
     - { tech: xgboost, verdict: inadapte, why: "Prédiction sur données tabulaires : sans rapport avec la génération de réponses à partir de textes." }
     - { tech: pytorch, verdict: surdimensionne, why: "Un cadre pour entraîner des réseaux de neurones, alors que le besoin est d'utiliser un modèle existant." }
     - { tech: tensorflow, verdict: surdimensionne, why: "Un cadre pour entraîner des réseaux de neurones, alors que le besoin est d'utiliser un modèle existant." }
+    - { tech: aws-bedrock, verdict: ideal, why: "Des modèles managés appelés depuis le compte AWS, dans une région choisie et sous les mêmes droits IAM que le reste : on sait où partent les données, sans GPU à gérer." }
+    - { tech: vertex-ai, verdict: acceptable, why: "Accès managé à Gemini dans un cadre d'entreprise : logique si l'entreprise est sur Google Cloud, une plateforme de plus sinon." }
+    - { tech: chroma, verdict: acceptable, why: "Une base vectorielle en quelques lignes, idéale pour prototyper ; en production, un service de plus, et les droits d'accès restent dans la base relationnelle." }
+    - { tech: weaviate, verdict: acceptable, why: "Base vectorielle avec recherche hybride intégrée, auto-hébergeable : performante, mais un service de plus à opérer pour ce volume." }
+    - { tech: llamaindex, verdict: acceptable, why: "Centré sur le RAG : chargeurs de documents, découpage et citations prêts à l'emploi ; une couche à comprendre pour un pipeline qui reste simple." }
+    - { tech: ray, verdict: surdimensionne, why: "Un cluster de calcul distribué pour indexer quelques dizaines de milliers de documents et répondre à quelques centaines de questions par jour." }
   base-operationnelle:
     - { tech: postgresql, verdict: ideal, why: "Stocke documents, métadonnées et droits d'accès, et accueille les vecteurs avec une extension : une seule base pour tout." }
     - { tech: supabase, verdict: acceptable, why: "PostgreSQL managé avec authentification incluse ; pratique, mais place les documents confidentiels chez un tiers." }
@@ -81,6 +87,7 @@ verdicts:
     - { tech: grafana, verdict: acceptable, why: "Pour suivre les temps de réponse et le volume d'appels, à brancher sur une source de métriques." }
     - { tech: prometheus, verdict: acceptable, why: "Collecte des métriques de l'API : utile, avec un service de plus à exploiter pour quelques centaines de questions par jour." }
     - { tech: elasticsearch, verdict: surdimensionne, why: "Un cluster de journaux à opérer en plus, alors que le volume de questions reste modeste." }
+    - { tech: langfuse, verdict: acceptable, why: "Montre le prompt envoyé, les passages récupérés et le coût de chaque réponse : précieux pour comprendre une mauvaise réponse ; à auto-héberger, car les traces contiennent des extraits confidentiels." }
   ci-cd:
     - { tech: github-actions, verdict: ideal, why: "Tests et déploiement à chaque modification, y compris un jeu de questions de référence pour détecter qu'un changement dégrade les réponses." }
   conteneurs-infra:
@@ -96,6 +103,16 @@ antiPatterns:
   - { techs: [ollama, vllm], penalty: 5, why: "Deux serveurs de modèles auto-hébergés pour la même fonction : un seul suffit." }
   - { techs: [pytorch, tensorflow], penalty: 10, why: "Deux cadres d'entraînement pour un besoin qui n'en demande aucun." }
   - { techs: [pinecone, vllm], penalty: 10, why: "Des modèles gardés en interne pour la confidentialité, mais les extraits de documents indexés chez un tiers : l'effort est annulé." }
+  - { techs: [chroma, pgvector], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [chroma, qdrant], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [chroma, pinecone], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [chroma, weaviate], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [weaviate, pgvector], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [weaviate, qdrant], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [weaviate, pinecone], penalty: 10, why: "Deux bases vectorielles pour les mêmes documents : les index divergeront, et chaque mise à jour devra être faite deux fois." }
+  - { techs: [aws-bedrock, claude-api], penalty: 5, why: "Deux accès à des modèles managés pour la même fonction : deux contrats, deux configurations de sécurité, des données envoyées par deux chemins." }
+  - { techs: [aws-bedrock, openai-api], penalty: 5, why: "Deux fournisseurs de modèle sans raison précise : des comportements différents à surveiller et des données confidentielles envoyées à deux tiers." }
+  - { techs: [langchain, llamaindex], penalty: 5, why: "Deux frameworks pour assembler le même pipeline de recherche : deux abstractions à apprendre et à déboguer." }
 referenceStack:
   frontend: [react]
   backend-api: [fastapi]

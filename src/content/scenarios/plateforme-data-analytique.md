@@ -28,6 +28,7 @@ verdicts:
     - { tech: duckdb, verdict: acceptable, why: "Transformations rapides sur une machine ; il faut organiser soi-même le partage des résultats." }
     - { tech: spark, verdict: surdimensionne, why: "Un cluster à opérer pour des transformations quotidiennes que le SQL de l'entrepôt exprime très bien." }
     - { tech: pandas, verdict: surdimensionne, why: "Tient en mémoire sur une seule machine : un historique de l'ordre du téraoctet n'y passe pas, et la logique serait écrite en Python plutôt que dans des modèles SQL partagés." }
+    - { tech: ray, verdict: surdimensionne, why: "Un cluster de calcul distribué en Python, alors que les analystes écrivent du SQL et que l'entrepôt fait déjà les transformations quotidiennes." }
   orchestration:
     - { tech: airflow, verdict: ideal, why: "Chargement nocturne en plusieurs étapes, avec dépendances, relance des échecs et historique : exactement son rôle." }
     - { tech: dagster, verdict: ideal, why: "Les mêmes garanties, avec en plus la lignée et la fraîcheur de chaque table, et une très bonne intégration à dbt." }
@@ -44,6 +45,7 @@ verdicts:
     - { tech: grafana, verdict: acceptable, why: "Peut afficher l'état des chargements, mais ce n'est pas un outil de BI pour les analystes." }
     - { tech: prometheus, verdict: surdimensionne, why: "Une infrastructure de métriques pour un traitement quotidien : les alertes de l'orchestrateur suffisent." }
     - { tech: elasticsearch, verdict: surdimensionne, why: "Un cluster de journaux à opérer pour un traitement quotidien : les alertes de l'orchestrateur suffisent." }
+    - { tech: langfuse, verdict: inadapte, why: "Observabilité des applications de LLM : les pipelines quotidiens se surveillent dans l'orchestrateur, pas dans un outil de traces de prompts." }
   cache-messaging:
     - { tech: kafka, verdict: surdimensionne, why: "Le besoin est un chargement quotidien : un flux d'événements en continu n'apporte rien et coûte en exploitation." }
 antiPatterns:

@@ -66,6 +66,7 @@ verdicts:
     - { tech: prometheus, verdict: surdimensionne, why: "Une infrastructure de métriques à opérer pour une seule application à faible trafic." }
     - { tech: grafana, verdict: surdimensionne, why: "Des tableaux de bord d'infrastructure sans infrastructure à surveiller : l'hébergeur fournit déjà l'essentiel." }
     - { tech: elasticsearch, verdict: surdimensionne, why: "Un cluster de journaux à opérer pour une seule application : les journaux de l'hébergeur suffisent." }
+    - { tech: langfuse, verdict: inadapte, why: "Trace des appels à des modèles de langage : l'application de réservation n'en fait aucun." }
   conteneurs-infra:
     - { tech: docker, verdict: acceptable, why: "Pratique pour avoir le même environnement partout, mais un PaaS sait construire l'application sans Dockerfile." }
     - { tech: kubernetes, verdict: surdimensionne, why: "Un cluster à opérer pour une seule application et quelques centaines d'utilisateurs." }

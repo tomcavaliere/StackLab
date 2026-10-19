@@ -73,6 +73,7 @@ verdicts:
     - { tech: dbt, verdict: acceptable, why: "Très bien pour les transformations SQL ; une partie des traitements (événements, ML) dépasse le SQL d'entrepôt." }
     - { tech: duckdb, verdict: inadapte, why: "Une seule machine : insuffisant pour ces volumes." }
     - { tech: pandas, verdict: inadapte, why: "Tient en mémoire sur une seule machine : insuffisant pour des années d'historique, utile seulement pour l'exploration ou de petits jeux de données." }
+    - { tech: ray, verdict: acceptable, why: "Distribue du Python sur un cluster, utile pour les traitements de ML ; pour les transformations massives d'historique en SQL et DataFrames, Spark est plus naturel." }
   orchestration:
     - { tech: airflow, verdict: ideal, why: "Graphes de tâches planifiées avec dépendances et reprises, exactement le besoin des traitements quotidiens." }
     - { tech: dagster, verdict: acceptable, why: "Mêmes garanties, centré sur les assets ; moins répandu, et une migration coûteuse si un orchestrateur existe déjà." }
@@ -94,6 +95,7 @@ verdicts:
     - { tech: grafana, verdict: ideal, why: "Tableaux de bord partagés par les équipes et l'astreinte." }
     - { tech: sentry, verdict: acceptable, why: "Utile pour les erreurs applicatives, mais ne remplace pas les métriques d'infrastructure." }
     - { tech: elasticsearch, verdict: ideal, why: "Centraliser et fouiller les journaux de centaines de services : son usage historique, avec la pile ELK." }
+    - { tech: langfuse, verdict: inadapte, why: "Observabilité des applications de LLM, sans rapport avec la surveillance de centaines de services d'une plateforme de réservation." }
 antiPatterns:
   - { techs: [heroku, kubernetes], penalty: 10, why: "Un PaaS et un orchestrateur de conteneurs : deux façons incompatibles d'exécuter les mêmes services." }
   - { techs: [snowflake, bigquery], penalty: 10, why: "Deux entrepôts pour les mêmes données : deux vérités qui divergent." }

@@ -30,6 +30,7 @@ verdicts:
     - { tech: duckdb, verdict: ideal, why: "Calcule les agrégats (usage sur 30 jours, nombre d'incidents) en SQL sur une machine, sans serveur ; complète bien pandas." }
     - { tech: dbt, verdict: acceptable, why: "Utile pour des variables définies en SQL, testées et partagées ; une couche de plus qu'une équipe de deux personnes n'a pas forcément besoin d'installer." }
     - { tech: spark, verdict: surdimensionne, why: "Un cluster à opérer pour quelques centaines de milliers de lignes qui tiennent sur un poste." }
+    - { tech: ray, verdict: surdimensionne, why: "Un cluster de calcul distribué pour quelques centaines de milliers de lignes qui tiennent sur un poste." }
   ml:
     - { tech: scikit-learn, verdict: ideal, why: "Prétraitement, découpage des données, modèles de base et évaluation derrière une même API : le bon point de départ sur des données tabulaires." }
     - { tech: xgboost, verdict: ideal, why: "Le gradient boosting est une référence sur les données tabulaires, s'entraîne sur CPU et se branche dans le pipeline scikit-learn." }
@@ -46,6 +47,12 @@ verdicts:
     - { tech: pgvector, verdict: inadapte, why: "Recherche par similarité de vecteurs : aucun texte ni embedding à rechercher ici." }
     - { tech: qdrant, verdict: inadapte, why: "Recherche par similarité de vecteurs : aucun texte ni embedding à rechercher ici." }
     - { tech: pinecone, verdict: inadapte, why: "Recherche par similarité de vecteurs : aucun texte ni embedding à rechercher ici." }
+    - { tech: ray, verdict: surdimensionne, why: "Entraînement et recherche d'hyperparamètres répartis sur un cluster, alors qu'un modèle sur données tabulaires s'entraîne sur un poste." }
+    - { tech: vertex-ai, verdict: surdimensionne, why: "Plateforme complète d'entraînement et de déploiement : trop pour un modèle qui s'entraîne sur un poste et produit une liste par semaine." }
+    - { tech: aws-bedrock, verdict: inadapte, why: "Donne accès à des modèles de langage : ils ne prédisent pas de façon fiable le départ d'un abonné à partir de ses chiffres." }
+    - { tech: llamaindex, verdict: inadapte, why: "Connecte un modèle de langage à des documents : le besoin est un modèle de prédiction sur données tabulaires." }
+    - { tech: chroma, verdict: inadapte, why: "Recherche par similarité de vecteurs : sans rapport avec la prédiction sur données tabulaires." }
+    - { tech: weaviate, verdict: inadapte, why: "Recherche par similarité de vecteurs : sans rapport avec la prédiction sur données tabulaires." }
   stockage-analytique:
     - { tech: duckdb, verdict: ideal, why: "Interroge directement des fichiers d'export sur une machine : suffisant pour préparer des données d'entraînement de cette taille." }
     - { tech: aws-s3, verdict: acceptable, why: "Bon endroit pour archiver les exports et les jeux d'entraînement datés, sans moteur de calcul associé." }
