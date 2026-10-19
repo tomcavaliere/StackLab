@@ -1,16 +1,12 @@
 ---
-import { getCollection, render } from 'astro:content';
+import { getCollection, render, getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Game, { type CompanyStack, type GameTech } from '../../components/game/Game';
 import { SCENARIO_TYPES, type Layer } from '../../lib/taxonomy';
 import type { ScenarioRules } from '../../lib/scoring';
 
-export async function getStaticPaths() {
-  const scenarios = await getCollection('scenarios');
-  return scenarios.map((scenario) => ({ params: { id: scenario.id }, props: { scenario } }));
-}
-
-const { scenario } = Astro.props;
+const scenario = await getEntry('scenarios', Astro.params.id!);
+if (!scenario) return new Response('Introuvable', { status: 404 });
 const s = scenario.data;
 const { Content } = await render(scenario);
 

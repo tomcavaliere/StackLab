@@ -1,14 +1,11 @@
 ---
-// Seule page rendue à la demande : elle lit la base à chaque visite.
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { getProgress, loadHistory } from '../lib/progress';
 import { isCorrect, sessionXp, techOfQuiz } from '../lib/rewards';
 
-export const prerender = false;
-
 const progress = await getProgress();
-const history = loadHistory();
+const history = await loadHistory();
 const [themes, scenarios, techs, techQuizzes] = await Promise.all([
   getCollection('quiz'),
   getCollection('scenarios'),

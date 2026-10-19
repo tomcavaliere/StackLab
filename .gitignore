@@ -14,3 +14,7 @@ data/*.db-*
 .vscode/*
 !.vscode/settings.json
 Thumbs.db
+
+# sortie de build Vercel, variables locales (secrets)
+.vercel/
+.env

@@ -1,15 +1,11 @@
 ---
-import { getCollection, render, type CollectionEntry } from 'astro:content';
+import { getCollection, render, type CollectionEntry, getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LayerBadges from '../../components/LayerBadges.astro';
 import { CONFIDENCES, DIFFICULTIES, KINDS, LAYERS, type Layer } from '../../lib/taxonomy';
 
-export async function getStaticPaths() {
-  const techs = await getCollection('techs');
-  return techs.map((tech) => ({ params: { id: tech.id }, props: { tech } }));
-}
-
-const { tech } = Astro.props;
+const tech = await getEntry('techs', Astro.params.id!);
+if (!tech) return new Response('Introuvable', { status: 404 });
 const { Content } = await render(tech);
 const all = await getCollection('techs');
 const byId = new Map(all.map((t) => [t.id, t]));

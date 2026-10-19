@@ -1,14 +1,10 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Quiz, { type QuizQuestion } from '../../components/quiz/Quiz';
 
-export async function getStaticPaths() {
-  const themes = await getCollection('quiz');
-  return themes.map((theme) => ({ params: { id: theme.id }, props: { theme } }));
-}
-
-const { theme } = Astro.props;
+const theme = await getEntry('quiz', Astro.params.id!);
+if (!theme) return new Response('Introuvable', { status: 404 });
 const techs = await getCollection('techs');
 
 // L'îlot reçoit des ids en clair (les références Astro sont des { id, collection }) et les noms des technos citées.

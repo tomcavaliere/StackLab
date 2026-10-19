@@ -4,16 +4,24 @@ import { getDb } from './db';
 import { BADGES, computeProgress, type History, type Progress, type QuizSession } from './rewards';
 
 /** Historique complet, dans l'ordre chronologique (les ids croissent avec le temps). */
-export function loadHistory(): History {
-  const db = getDb();
-  const sessions = db.prepare('SELECT id, theme_id, played_at FROM quiz_sessions ORDER BY id').all() as {
-    id: number;
-    theme_id: string;
-    played_at: string;
+export async function loadHistory(): Promise<History> {
+  const db = await getDb();
+  const [sessionRows, answerRows, attemptRows, viewRows] = await db.batch(
+    [
+      'SELECT id, theme_id, played_at FROM quiz_sessions ORDER BY id',
+      'SELECT session_id, question_id, chosen_tech, correct_tech FROM quiz_answers ORDER BY session_id, position',
+      'SELECT scenario_id, played_at, score FROM attempts ORDER BY id',
+      'SELECT DISTINCT tech_id FROM tech_views',
+    ],
+    'read',
+  );
+  const sessions = sessionRows.rows as unknown as { id: number; theme_id: string; played_at: string }[];
+  const answers = answerRows.rows as unknown as {
+    session_id: number;
+    question_id: string;
+    chosen_tech: string;
+    correct_tech: string;
   }[];
-  const answers = db
-    .prepare('SELECT session_id, question_id, chosen_tech, correct_tech FROM quiz_answers ORDER BY session_id, position')
-    .all() as { session_id: number; question_id: string; chosen_tech: string; correct_tech: string }[];
   const byId = new Map<number, QuizSession>(
     sessions.map((s) => [s.id, { themeId: s.theme_id, playedAt: s.played_at, answers: [] }]),
   );
@@ -21,12 +29,8 @@ export function loadHistory(): History {
     byId.get(a.session_id)?.answers.push({ questionId: a.question_id, chosenTech: a.chosen_tech, correctTech: a.correct_tech });
   }
 
-  const attempts = db.prepare('SELECT scenario_id, played_at, score FROM attempts ORDER BY id').all() as {
-    scenario_id: string;
-    played_at: string;
-    score: number;
-  }[];
-  const views = db.prepare('SELECT DISTINCT tech_id FROM tech_views').all() as { tech_id: string }[];
+  const attempts = attemptRows.rows as unknown as { scenario_id: string; played_at: string; score: number }[];
+  const views = viewRows.rows as unknown as { tech_id: string }[];
 
   return {
     quizSessions: [...byId.values()],
@@ -47,17 +51,21 @@ export async function getProgress(): Promise<ProgressView> {
     questionIds: t.data.questions.map((q) => q.id),
   });
   const [themes, techQuizzes] = await Promise.all([getCollection('quiz'), getCollection('techQuiz')]);
-  const { unlocked, ...progress } = computeProgress(loadHistory(), themes.map(toTheme), techQuizzes.map(toTheme), new Date());
+  const { unlocked, ...progress } = computeProgress(await loadHistory(), themes.map(toTheme), techQuizzes.map(toTheme), new Date());
 
-  const db = getDb();
-  const insert = db.prepare('INSERT OR IGNORE INTO badges (badge_id) VALUES (?)');
-  const newBadges = unlocked.filter((id) => insert.run(id).changes > 0);
-  const dates = new Map(
-    (db.prepare('SELECT badge_id, unlocked_at FROM badges').all() as { badge_id: string; unlocked_at: string }[]).map((b) => [
-      b.badge_id,
-      b.unlocked_at,
-    ]),
-  );
+  const db = await getDb();
+  const inserted = unlocked.length
+    ? await db.batch(
+        unlocked.map((id) => ({ sql: 'INSERT OR IGNORE INTO badges (badge_id) VALUES (?)', args: [id] })),
+        'write',
+      )
+    : [];
+  const newBadges = unlocked.filter((_, i) => inserted[i].rowsAffected > 0);
+  const badgeRows = (await db.execute('SELECT badge_id, unlocked_at FROM badges')).rows as unknown as {
+    badge_id: string;
+    unlocked_at: string;
+  }[];
+  const dates = new Map(badgeRows.map((b) => [b.badge_id, b.unlocked_at]));
 
   return {
     ...progress,

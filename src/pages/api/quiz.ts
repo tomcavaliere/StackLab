@@ -4,8 +4,6 @@ import { getDb } from '../../lib/db';
 import { getProgress, loadHistory } from '../../lib/progress';
 import { questionStats } from '../../lib/rewards';
 
-export const prerender = false;
-
 // La justesse est calculée côté client (chosenTech === correctTech) ; on stocke les réponses telles quelles.
 // Quiz d'une techno : themeId = « tech:<id de la fiche> », chosenTech et correctTech = texte des options.
 const Body = z.object({
@@ -14,10 +12,10 @@ const Body = z.object({
 });
 
 /** Statistiques des questions d'un thème : { [questionId]: { seen, streak, lastAt } }. Paramètre : ?theme=<id> */
-export const GET: APIRoute = ({ url }) => {
+export const GET: APIRoute = async ({ url }) => {
   const theme = url.searchParams.get('theme');
   if (!theme) return new Response('paramètre ?theme= manquant', { status: 400 });
-  return Response.json(questionStats(loadHistory().quizSessions, theme));
+  return Response.json(questionStats((await loadHistory()).quizSessions, theme));
 };
 
 /**
@@ -30,21 +28,22 @@ export const POST: APIRoute = async ({ request }) => {
   const { themeId, answers } = parsed.data;
 
   const before = await getProgress();
-  const db = getDb();
-  const save = db.transaction(() => {
-    const { lastInsertRowid } = db.prepare('INSERT INTO quiz_sessions (theme_id) VALUES (?)').run(themeId);
-    const insert = db.prepare(
-      'INSERT INTO quiz_answers (session_id, position, question_id, chosen_tech, correct_tech) VALUES (?, ?, ?, ?, ?)',
-    );
-    answers.forEach((a, i) => insert.run(lastInsertRowid, i, a.questionId, a.chosenTech, a.correctTech));
-    return Number(lastInsertRowid);
-  });
-
+  const tx = await (await getDb()).transaction('write');
   let id: number;
   try {
-    id = save();
+    const { lastInsertRowid } = await tx.execute({ sql: 'INSERT INTO quiz_sessions (theme_id) VALUES (?)', args: [themeId] });
+    for (const [i, a] of answers.entries()) {
+      await tx.execute({
+        sql: 'INSERT INTO quiz_answers (session_id, position, question_id, chosen_tech, correct_tech) VALUES (?, ?, ?, ?, ?)',
+        args: [lastInsertRowid!, i, a.questionId, a.chosenTech, a.correctTech],
+      });
+    }
+    await tx.commit();
+    id = Number(lastInsertRowid);
   } catch (error) {
     return new Response(String(error), { status: 400 });
+  } finally {
+    tx.close();
   }
   const after = await getProgress();
   return Response.json(

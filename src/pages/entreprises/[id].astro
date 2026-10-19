@@ -1,15 +1,11 @@
 ---
-import { getCollection, render } from 'astro:content';
+import { getCollection, render, getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { CONFIDENCES, LAYERS, SOURCE_TYPES, type Layer } from '../../lib/taxonomy';
 import { isOld } from '../../lib/sources';
 
-export async function getStaticPaths() {
-  const companies = await getCollection('companies');
-  return companies.map((company) => ({ params: { id: company.id }, props: { company } }));
-}
-
-const { company } = Astro.props;
+const company = await getEntry('companies', Astro.params.id!);
+if (!company) return new Response('Introuvable', { status: 404 });
 const c = company.data;
 const { Content } = await render(company);
 const techs = new Map((await getCollection('techs')).map((t) => [t.id, t]));

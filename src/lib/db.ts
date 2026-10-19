@@ -1,17 +1,21 @@
-import Database from 'better-sqlite3';
+import { createClient, type Client } from '@libsql/client';
+import { TURSO_AUTH_TOKEN, TURSO_DATABASE_URL } from 'astro:env/server';
 import { mkdirSync } from 'node:fs';
 import schema from './schema.sql?raw';
 
-const DB_PATH = 'data/stacklab.db';
+let db: Promise<Client> | undefined;
 
-let db: Database.Database | undefined;
-
-/** Ouvre la base au premier appel et applique schema.sql (CREATE TABLE IF NOT EXISTS : crée les tables manquantes). */
+/**
+ * Ouvre la base au premier appel et applique schema.sql (CREATE TABLE IF NOT EXISTS : crée les tables manquantes).
+ * Turso si TURSO_DATABASE_URL est défini, sinon le fichier local data/stacklab.db.
+ * Pas de PRAGMA foreign_keys : en HTTP chaque requête est indépendante, et l'app ne supprime jamais de ligne.
+ */
 export function getDb() {
-  if (db) return db;
-  mkdirSync('data', { recursive: true });
-  db = new Database(DB_PATH);
-  db.pragma('foreign_keys = ON');
-  db.exec(schema);
+  db ??= (async () => {
+    if (TURSO_DATABASE_URL.startsWith('file:')) mkdirSync('data', { recursive: true });
+    const client = createClient({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN });
+    await client.executeMultiple(schema);
+    return client;
+  })();
   return db;
 }

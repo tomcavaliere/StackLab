@@ -1,15 +1,11 @@
 ---
-import { getCollection, getEntry } from 'astro:content';
+import { getEntry } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import Quiz from '../../../components/quiz/Quiz';
 import { techQuizId } from '../../../lib/rewards';
 
-export async function getStaticPaths() {
-  const quizzes = await getCollection('techQuiz');
-  return quizzes.map((quiz) => ({ params: { id: quiz.id }, props: { quiz } }));
-}
-
-const { quiz } = Astro.props;
+const quiz = await getEntry('techQuiz', Astro.params.id!);
+if (!quiz) return new Response('Introuvable', { status: 404 });
 // Vérifié au build par scripts/check-content.mjs ; en dev, une erreur explicite plutôt qu'une page cassée.
 const tech = await getEntry('techs', quiz.id);
 if (!tech) throw new Error(`src/content/tech-quiz/${quiz.id}.md : aucune fiche src/content/techs/${quiz.id}.md`);

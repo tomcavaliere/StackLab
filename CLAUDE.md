@@ -1,8 +1,8 @@
 # StackLab
 
-App web perso pour comprendre le rôle de chaque techno dans une stack et s'entraîner à composer une stack pour un besoin donné. Un seul utilisateur, usage local (`npm run dev`), pas de déploiement. Optimiser pour la vitesse d'itération, pas pour la finition.
+App web perso pour comprendre le rôle de chaque techno dans une stack et s'entraîner à composer une stack pour un besoin donné. Un seul utilisateur. Déployée sur Vercel (accès depuis le téléphone), progression dans Turso, partagée entre le téléphone et l'ordi ; `npm run dev` en local. Optimiser pour la vitesse d'itération, pas pour la finition.
 
-Hors périmètre, à ne pas ajouter : auth, CMS, i18n, dark mode, éditeur in-app, SEO, analytics, onboarding, audit d'accessibilité, responsive mobile (desktop seulement).
+Hors périmètre, à ne pas ajouter : comptes utilisateurs (un seul mot de passe suffit), CMS, i18n, dark mode, éditeur in-app, SEO, analytics, onboarding, audit d'accessibilité, responsive mobile (desktop seulement).
 
 ## Environnement : tout dans `.venv`
 
@@ -31,7 +31,15 @@ VIRTUAL_ENV="$PWD/.venv" .venv/bin/nodeenv -p --node=24.21.0
 export PATH="$PWD/.venv/bin:$PATH"; npm ci
 ```
 
-**Scripts d'installation refusés** (`allowScripts` dans `package.json`) : `better-sqlite3` et `fsevents` (watcher de fichiers de Vite, macOS seulement). C'est voulu : les deux paquets incluent leurs binaires précompilés (`better-sqlite3/prebuilds` couvre `win32-x64`, `darwin-arm64`, `darwin-x64`…). Ne pas approuver ces scripts, sinon npm lance une compilation node-gyp qui exige un compilateur C++ (Visual Studio Build Tools, Xcode Command Line Tools).
+**Script d'installation refusé** (`allowScripts` dans `package.json`) : `fsevents` (watcher de fichiers de Vite, macOS seulement). C'est voulu : le paquet inclut son binaire précompilé. Ne pas l'approuver, sinon npm lance une compilation node-gyp qui exige les Xcode Command Line Tools. (`@libsql/client` n'a pas de script : son binaire natif vient d'un paquet optionnel par plateforme.)
+
+**Variables d'environnement** (`.env.example` → `.env`, ignoré par git ; déclarées dans `astro.config.mjs`, `astro:env`) : `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (sans URL : fichier local `data/stacklab.db`) et `STACKLAB_PASSWORD` (vide : pas de mot de passe). Avec les valeurs Turso dans `.env`, `npm run dev` lit et écrit la même progression que l'app déployée.
+
+## Déploiement
+
+- **Vercel** (adapter `@astrojs/vercel`), relié au dépôt GitHub : chaque `git push` sur `main` redéploie. Les 3 variables sont dans les réglages du projet Vercel (Settings → Environment Variables) ; région des fonctions en Europe, près de la base.
+- **Turso** : SQLite hébergé (client `@libsql/client`), base `stacklab`. Le schéma s'applique tout seul au premier appel, comme en local.
+- **Mot de passe** : `src/middleware.ts`, Basic Auth sur toutes les requêtes (le nom d'utilisateur est ignoré). Le navigateur le demande une fois puis le mémorise.
 
 ## Commandes
 
@@ -40,7 +48,8 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 | `npm run dev` | Serveur local sur http://localhost:4321 |
 | `npm run build` | Vérifie les sections des fiches et les quiz de techno (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
 | `npm test` | Tests Vitest (scoring, récompenses) |
-| `sqlite3 data/stacklab.db` | Interroger la progression |
+| `sqlite3 data/stacklab.db` | Interroger la progression locale (sans `.env` Turso) |
+| `turso db shell stacklab` | Interroger la progression en ligne (CLI Turso, ou l'éditeur SQL du dashboard turso.tech) |
 
 ## Architecture
 
@@ -56,7 +65,7 @@ src/
     tech-quiz/<id>.md    quiz d'une techno (QCM en texte), id = id de sa fiche
   lib/
     taxonomy.ts          vocabulaires contrôlés (kinds, couches, verdicts…) : slug -> libellé
-    db.ts, schema.sql    SQLite : ouverture paresseuse, schéma (IF NOT EXISTS) appliqué à chaque ouverture
+    db.ts, schema.sql    client libSQL (Turso, ou fichier local) : ouverture paresseuse, schéma (IF NOT EXISTS) appliqué à chaque ouverture
     scoring.ts (+ .test) score d'une partie, fonction pure
     rewards.ts (+ .test) XP, niveaux, série, maîtrise, choix des questions, badges : fonctions pures
     progress.ts          historique lu en base -> computeProgress, persistance des badges débloqués
@@ -80,15 +89,16 @@ src/
     api/quiz.ts          POST { themeId, answers: [{ questionId, chosenTech, correctTech }] } : enregistre une session · GET ?theme= : stats par question
     api/progress.ts      GET : XP, niveau, série, maîtrise par thème et par techno, badges, confusions
   layouts/Base.astro
+  middleware.ts          mot de passe (Basic Auth) devant toutes les requêtes, si STACKLAB_PASSWORD est défini
 scripts/check-content.mjs    ce que Zod ne voit pas : sections imposées des fiches, quiz de techno sans fiche (erreur), fiche sans quiz (avertissement)
 scripts/check-quality.mjs    hors build : cartes sans verdict par scénario (`verdicts`), bonne réponse trop souvent la plus longue (`lengths [ids]`)
 .claude/skills/              nouvelle-fiche, quiz-techno, quiz-theme : procédures de rédaction pas à pas
-data/stacklab.db             base locale, ignorée par git
+data/stacklab.db             base locale (sans Turso), ignorée par git
 ```
 
 - **Le contenu est de la donnée** : un fichier Markdown + frontmatter par entité, validé au build. Ajouter une techno, c'est ajouter un fichier, sans toucher au code.
 - **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`, `quiz_sessions`, `quiz_answers`, `badges`), jamais de contenu. Les ids de tech, de scénario, de thème et de question y sont des ids de contenu, sans clé étrangère possible. Une session du quiz d'une techno est une session de quiz comme une autre, avec `theme_id = 'tech:<id de la fiche>'` et le texte des options dans `chosen_tech` / `correct_tech`.
-- **Pages prérendues** ; seuls les endpoints `src/pages/api/*` et `/progression` (`export const prerender = false`) tournent côté serveur (adapter `@astrojs/node`). Ailleurs, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
+- **Tout est rendu à la demande** (`output: 'server'`, adapter `@astrojs/vercel`) : sur Vercel, des pages prérendues seraient servies sans passer par le middleware, donc sans mot de passe. Les pages dynamiques lisent leur entrée avec `getEntry(collection, Astro.params.id)` (404 si absente), pas de `getStaticPaths`. Hors `/progression`, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
 - **Scoring** (phase 2) : fonction pure dans `src/lib/scoring.ts`, indépendante de l'UI, testée avec Vitest. Calculée côté client, le résultat est envoyé tel quel à `/api/attempts`.
 - **Récompenses** (phase 6) : fonctions pures dans `src/lib/rewards.ts`, testées avec Vitest, partagées par le serveur et l'îlot Quiz. Tout est recalculé depuis l'historique brut ; seuls les badges débloqués sont stockés (avec leur date, sans régression possible).
 - **Jeu** (phase 3) : îlot React, diagramme et animation avec React Flow (`@xyflow/react`), drag HTML5 natif depuis la pioche. dnd-kit seulement si React Flow ne suffit pas.
@@ -101,7 +111,7 @@ data/stacklab.db             base locale, ignorée par git
 - **Vocabulaires** (kind, couches, type de scénario, verdict, type de source, confiance) : slugs ASCII dans les fichiers, libellés dans `taxonomy.ts`. En ajouter un modifie le code, c'est assumé.
 - **Tags** libres, en kebab-case ASCII. Réutiliser les tags existants avant d'en créer (`grep -h "^tags:" src/content/techs/*.md`).
 - **Exactitude** : aucun chiffre de performance inventé. En cas d'incertitude, l'écrire explicitement dans la fiche.
-- **SQLite** : pas d'outil de migration. `schema.sql` (`CREATE TABLE IF NOT EXISTS`) est appliqué à chaque ouverture : **ajouter une table** est automatique et garde l'historique ; **modifier une table existante** impose de supprimer `data/stacklab.db` (recréée au premier appel d'API, progression perdue).
+- **SQLite** : pas d'outil de migration. `schema.sql` (`CREATE TABLE IF NOT EXISTS`) est appliqué à chaque ouverture : **ajouter une table** est automatique et garde l'historique ; **modifier une table existante** impose de la supprimer (`DROP TABLE` dans `turso db shell stacklab`, ou supprimer `data/stacklab.db` en local) : recréée au premier appel d'API, historique de la table perdu. Les requêtes sont asynchrones (`await (await getDb()).execute({ sql, args })`) ; plusieurs écritures liées passent par `db.transaction('write')`.
 - **Code** : le minimum qui fait le travail, pas d'abstraction anticipée. Les messages d'erreur peuvent être orientés développeur.
 - **Git** : un commit par phase validée.
 
@@ -233,7 +243,7 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 3. **Tests du scoring** (`npm test`) : idéale > acceptable > surdimensionnée ; couche requise manquante pénalisée ; anti-pattern détecté.
 4. **Les 3 scénarios sont jouables** de bout en bout, animation comprise.
 5. **Page entreprise** : source, date et confiance de chaque techno ; sources de plus de 3 ans signalées visuellement.
-6. **Partie enregistrée** :
+6. **Partie enregistrée** (en ligne : même requête dans `turso db shell stacklab`) :
    ```
    sqlite3 -header -column data/stacklab.db "SELECT a.id, a.scenario_id, a.played_at, a.score, c.tech_id, c.layer, c.verdict FROM attempts a JOIN attempt_cards c ON c.attempt_id = a.id ORDER BY a.id DESC;"
    ```

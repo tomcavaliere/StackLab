@@ -1,8 +1,8 @@
 # StackLab
 
-Une app web locale pour comprendre à quoi sert chaque techno d'une stack, et s'entraîner à composer une stack adaptée à un besoin donné.
+Une app web pour comprendre à quoi sert chaque techno d'une stack, et s'entraîner à composer une stack adaptée à un besoin donné.
 
-Projet perso, pour un seul utilisateur : elle tourne en local avec `npm run dev` et n'est pas faite pour être déployée.
+Projet perso, pour un seul utilisateur. Elle est déployée sur Vercel, protégée par un mot de passe, pour s'en servir depuis le téléphone ; la progression est stockée dans [Turso](https://turso.tech) (SQLite hébergé) et partagée entre le téléphone et l'ordi. En local, `npm run dev`.
 
 ## Ce qu'on y trouve
 
@@ -45,7 +45,17 @@ npm run dev
 
 L'app tourne alors sur http://localhost:4321. Dans le terminal intégré de VS Code, le dossier du venv est déjà en tête du PATH sur les deux systèmes (`.vscode/settings.json`). Dans un autre terminal, l'activer d'abord : `.venv\Scripts\Activate.ps1` sous Windows, `source .venv/bin/activate` sous macOS.
 
-> Les scripts d'installation de `better-sqlite3` et de `fsevents` sont volontairement refusés (`allowScripts` dans `package.json`), parce que ces paquets embarquent déjà leurs binaires précompilés pour Windows et macOS. Il ne faut pas les autoriser : npm lancerait une compilation node-gyp qui exige un compilateur C++.
+> Le script d'installation de `fsevents` est volontairement refusé (`allowScripts` dans `package.json`), parce que le paquet embarque déjà son binaire précompilé. Il ne faut pas l'autoriser : npm lancerait une compilation node-gyp qui exige un compilateur C++.
+
+Sans configuration, la progression va dans le fichier local `data/stacklab.db`. Pour travailler sur la même progression que l'app en ligne, copier `.env.example` en `.env` et y mettre l'URL et le token Turso.
+
+## Déploiement
+
+1. **Turso** : créer une base `stacklab` (région Europe) sur [turso.tech](https://turso.tech), puis récupérer son URL (`libsql://…`) et un token.
+2. **Vercel** : importer le dépôt GitHub sur [vercel.com](https://vercel.com) (« Add New Project »), puis renseigner `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` et `STACKLAB_PASSWORD` dans Settings → Environment Variables. Mettre la région des fonctions en Europe (Settings → Functions).
+3. Chaque `git push` sur `main` redéploie. Sur le téléphone, ouvrir l'URL Vercel, saisir le mot de passe (n'importe quel nom d'utilisateur), puis « Ajouter à l'écran d'accueil ».
+
+Les tables sont créées au premier appel. Pour reprendre une progression locale : `sqlite3 data/stacklab.db .dump > dump.sql`, puis `turso db shell stacklab < dump.sql`.
 
 ## Commandes
 
@@ -56,15 +66,16 @@ L'app tourne alors sur http://localhost:4321. Dans le terminal intégré de VS C
 | `npm test` | Tests Vitest du scoring et des récompenses |
 | `node scripts/check-quality.mjs verdicts` | Liste les cartes sans verdict, par scénario |
 | `node scripts/check-quality.mjs lengths` | Signale les quiz où la bonne réponse est trop souvent l'option la plus longue |
-| `sqlite3 data/stacklab.db` | Interroge la progression enregistrée |
+| `sqlite3 data/stacklab.db` | Interroge la progression locale |
+| `turso db shell stacklab` | Interroge la progression en ligne (CLI Turso, ou l'éditeur SQL du dashboard) |
 
 ## Comment c'est fait
 
-- **[Astro](https://astro.build/) 7** : les pages sont prérendues. Seuls les endpoints `src/pages/api/*` et `/progression` tournent côté serveur (adapter `@astrojs/node`).
+- **[Astro](https://astro.build/) 7**, rendu côté serveur sur Vercel (adapter `@astrojs/vercel`), avec un middleware qui demande le mot de passe.
 - **React 19** pour les parties interactives : le jeu (diagramme et animations avec [React Flow](https://reactflow.dev/)), le quiz et la page « Par métier ».
 - **Tailwind CSS 4** pour le style.
 - **Le contenu est de la donnée** : un fichier Markdown avec frontmatter par entité, dans `src/content/` (`techs`, `scenarios`, `companies`, `roles`, `quiz`, `tech-quiz`). Les schémas Zod de `src/content.config.ts` le valident au build, et une référence vers une fiche qui n'existe pas fait échouer le build.
-- **SQLite** (`better-sqlite3`) ne stocke que la progression : parties, vues, sessions de quiz, badges. La base `data/stacklab.db` est créée au premier appel d'API et n'est pas versionnée.
+- **SQLite**, via le client libSQL : Turso en ligne, ou le fichier local `data/stacklab.db` (non versionné). Il ne stocke que la progression : parties, vues, sessions de quiz, badges. Les tables sont créées au premier appel d'API.
 - **Le scoring et les récompenses** sont des fonctions pures (`src/lib/scoring.ts`, `src/lib/rewards.ts`), testées avec Vitest. Tout est recalculé depuis l'historique brut, et seuls les badges débloqués sont stockés.
 
 ```
@@ -85,4 +96,4 @@ Ajouter une techno, un scénario ou un quiz revient à ajouter un fichier Markdo
 
 ## Hors périmètre
 
-Pas d'authentification, de CMS, d'i18n, de mode sombre, de SEO, d'analytics, de version mobile ni de déploiement. Le projet vise la vitesse d'itération, pas la finition.
+Pas de comptes utilisateurs (un seul mot de passe), de CMS, d'i18n, de mode sombre, de SEO, d'analytics ni de version mobile soignée. Le projet vise la vitesse d'itération, pas la finition.
