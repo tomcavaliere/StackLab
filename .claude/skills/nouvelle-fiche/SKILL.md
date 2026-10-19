@@ -7,7 +7,7 @@ description: Écrire une ou plusieurs nouvelles fiches techno StackLab (src/cont
 
 La procédure de référence est « Procédure : ajouter une fiche techno » dans CLAUDE.md. Ce skill la déroule et ajoute les pièges rencontrés.
 
-Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `export PATH="$PWD/.venv/Scripts:$PATH"`.
+Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `export PATH="$PWD/.venv/Scripts:$PWD/.venv/bin:$PATH"` (`Scripts` sous Windows, `bin` sous macOS).
 
 ## 1. Cadrer avant d'écrire
 

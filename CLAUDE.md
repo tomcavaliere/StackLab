@@ -6,13 +6,13 @@ Hors périmètre, à ne pas ajouter : auth, CMS, i18n, dark mode, éditeur in-ap
 
 ## Environnement : tout dans `.venv`
 
-Rien n'est installé au niveau système. `.venv` est un venv Python dans lequel `nodeenv` a installé Node 24 LTS et npm ; la CLI `sqlite3.exe` y est copiée. Les paquets npm sont dans `node_modules`, comme d'habitude.
+Le projet tourne sous Windows et sous macOS. Rien n'est installé au niveau système. `.venv` est un venv Python dans lequel `nodeenv` a installé Node 24 LTS et npm. Les exécutables sont dans `.venv\Scripts` sous Windows (la CLI `sqlite3.exe` y est copiée) et dans `.venv/bin` sous macOS (`sqlite3` est fourni par le système). Les paquets npm sont dans `node_modules`, comme d'habitude.
 
-- **Terminal VS Code** : `.vscode/settings.json` met `.venv\Scripts` en tête du PATH, rien à activer.
-- **Autre terminal** : `.venv\Scripts\activate.bat` (cmd) ou `.venv\Scripts\Activate.ps1` (PowerShell).
-- **Agent (shell non interactif)** : préfixer chaque commande. En PowerShell : `$env:PATH = "$PWD\.venv\Scripts;$env:PATH"`. En bash : `export PATH="$PWD/.venv/Scripts:$PATH"`.
+- **Terminal VS Code** : `.vscode/settings.json` met le dossier du venv en tête du PATH, sous Windows comme sous macOS, rien à activer.
+- **Autre terminal** : Windows : `.venv\Scripts\activate.bat` (cmd) ou `.venv\Scripts\Activate.ps1` (PowerShell). macOS : `source .venv/bin/activate`.
+- **Agent (shell non interactif)** : préfixer chaque commande. En PowerShell : `$env:PATH = "$PWD\.venv\Scripts;$env:PATH"`. En bash ou zsh, sur les deux systèmes : `export PATH="$PWD/.venv/Scripts:$PWD/.venv/bin:$PATH"`.
 
-Recréer l'environnement depuis zéro (PowerShell, à la racine) :
+Recréer l'environnement depuis zéro, à la racine. Windows (PowerShell) :
 
 ```powershell
 python -m venv .venv
@@ -22,7 +22,16 @@ $env:VIRTUAL_ENV = "$PWD\.venv"; .venv\Scripts\nodeenv -p --node=24.21.0
 $env:PATH = "$PWD\.venv\Scripts;$env:PATH"; npm ci
 ```
 
-**better-sqlite3** : son script d'installation est refusé (`allowScripts` dans `package.json`). C'est voulu : le paquet inclut un binaire précompilé `win32-x64`. Ne pas approuver ce script, sinon npm lance une compilation node-gyp qui exige Visual Studio Build Tools.
+macOS (zsh) :
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install nodeenv==1.11.0
+VIRTUAL_ENV="$PWD/.venv" .venv/bin/nodeenv -p --node=24.21.0
+export PATH="$PWD/.venv/bin:$PATH"; npm ci
+```
+
+**Scripts d'installation refusés** (`allowScripts` dans `package.json`) : `better-sqlite3` et `fsevents` (watcher de fichiers de Vite, macOS seulement). C'est voulu : les deux paquets incluent leurs binaires précompilés (`better-sqlite3/prebuilds` couvre `win32-x64`, `darwin-arm64`, `darwin-x64`…). Ne pas approuver ces scripts, sinon npm lance une compilation node-gyp qui exige un compilateur C++ (Visual Studio Build Tools, Xcode Command Line Tools).
 
 ## Commandes
 

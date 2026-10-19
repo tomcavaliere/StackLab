@@ -7,7 +7,7 @@ description: Créer un thème de quiz StackLab ou y ajouter des questions (src/c
 
 La procédure de référence est « Procédure : ajouter un thème ou des questions de quiz » dans CLAUDE.md. Ce skill la déroule et ajoute les pièges rencontrés.
 
-Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `export PATH="$PWD/.venv/Scripts:$PATH"`.
+Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `export PATH="$PWD/.venv/Scripts:$PWD/.venv/bin:$PATH"` (`Scripts` sous Windows, `bin` sous macOS).
 
 ## 1. Préparer
 
