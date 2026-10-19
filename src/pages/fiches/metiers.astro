@@ -1,0 +1,40 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import FichesTabs from '../../components/FichesTabs.astro';
+import Roles, { type Role } from '../../components/roles/Roles';
+import { KINDS, ROLE_FAMILIES } from '../../lib/taxonomy';
+
+const techs = await getCollection('techs');
+const familyOrder = Object.keys(ROLE_FAMILIES);
+
+const roles: Role[] = (await getCollection('roles'))
+  .sort(
+    (a, b) =>
+      familyOrder.indexOf(a.data.family) - familyOrder.indexOf(b.data.family) || a.data.name.localeCompare(b.data.name, 'fr'),
+  )
+  .map((r) => ({
+    id: r.id,
+    name: r.data.name,
+    family: r.data.family,
+    familyLabel: ROLE_FAMILIES[r.data.family],
+    summary: r.data.summary,
+    mission: r.data.mission,
+    steps: r.data.stack.map((s) => ({
+      step: s.step,
+      intro: s.intro,
+      techs: s.techs.map((t) => ({ id: t.tech.id, why: t.why, essential: t.essential })),
+    })),
+  }));
+
+const info = Object.fromEntries(techs.map((t) => [t.id, { name: t.data.name, kind: KINDS[t.data.kind] }]));
+---
+
+<Base title="Fiches par métier" wide>
+  <h1 class="text-2xl font-bold">Fiches techno</h1>
+  <p class="mt-1 text-slate-600">Quelles technos un métier croise-t-il, et lesquelles partage-t-il avec les autres ?</p>
+  <div class="mt-4"><FichesTabs current="metier" /></div>
+  <div class="mt-6">
+    <Roles client:only="react" roles={roles} techs={info} />
+  </div>
+</Base>

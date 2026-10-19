@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
-import { CONFIDENCES, KINDS, LAYERS, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids, type Layer } from './lib/taxonomy';
+import { CONFIDENCES, KINDS, LAYERS, ROLE_FAMILIES, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids, type Layer } from './lib/taxonomy';
 
 // reference() d'Astro 7 ne vérifie pas que l'id existe : il le transforme seulement en { id, collection }.
 // ref() ajoute ce contrôle, si bien qu'un id sans fichier correspondant fait échouer le build.
@@ -32,6 +32,41 @@ const techs = defineCollection({
     alternatives: z.array(linkedTech).default([]),
     integratesWith: z.array(linkedTech).default([]),
   }),
+});
+
+// Un métier : la pile qu'il utilise, découpée en étapes de son travail. Une techno peut figurer dans
+// plusieurs métiers (avec un `why` propre à chacun) : c'est ce recoupement que la page « Par métier » montre.
+const roles = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/roles' }),
+  schema: z
+    .strictObject({
+      name: z.string(),
+      family: z.enum(ids(ROLE_FAMILIES)),
+      summary: z.string(), // une phrase
+      mission: z.string(), // ce que fait ce métier au quotidien
+      stack: z
+        .array(
+          z.strictObject({
+            step: z.string(), // étape du travail : « Stocker », « Orchestrer »…
+            intro: z.string(), // ce qu'on cherche à faire à cette étape
+            techs: z
+              .array(z.strictObject({ tech: ref('techs'), why: z.string(), essential: z.boolean().default(false) }))
+              .min(1),
+          }),
+        )
+        .min(1),
+    })
+    .superRefine((r, ctx) => {
+      const seen = new Set<string>();
+      r.stack.forEach((s, i) =>
+        s.techs.forEach((t, j) => {
+          if (seen.has(t.tech.id)) {
+            ctx.addIssue({ code: 'custom', path: ['stack', i, 'techs', j], message: `"${t.tech.id}" figure deux fois dans ce métier` });
+          }
+          seen.add(t.tech.id);
+        }),
+      );
+    }),
 });
 
 const scenarios = defineCollection({
@@ -181,4 +216,4 @@ const techQuiz = defineCollection({
     }),
 });
 
-export const collections = { techs, scenarios, companies, quiz, techQuiz };
+export const collections = { techs, roles, scenarios, companies, quiz, techQuiz };

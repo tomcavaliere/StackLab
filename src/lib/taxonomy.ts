@@ -15,6 +15,28 @@ export const KINDS = {
   concept: 'Concept / pattern',
 } as const;
 
+// Une phrase par type, affichée en tête de chaque groupe de la liste des fiches.
+export const KIND_DESCRIPTIONS: Record<keyof typeof KINDS, string> = {
+  langage: 'Les langages dans lesquels on écrit le code. Ce ne sont pas des cartes du jeu : ils servent de base aux frameworks.',
+  framework: 'Des boîtes à outils qui structurent une application ou une bibliothèque : on code avec eux plutôt que de repartir de zéro.',
+  'base-de-donnees': 'Là où la donnée est stockée durablement, puis interrogée.',
+  'cache-queue': 'Données rapides et éphémères (cache) ou messages échangés entre services (files d’attente).',
+  'moteur-traitement': 'Calculent sur de gros volumes de données, souvent en parallèle sur plusieurs machines.',
+  orchestrateur: 'Pilotent l’exécution d’autres tâches ou conteneurs : ordre, reprises, planification.',
+  plateforme: 'Environnements complets qui hébergent ou exécutent du code et des services.',
+  'service-cloud': 'Services managés loués à un fournisseur : on les consomme sans en gérer les serveurs.',
+  'outil-infra': 'Outils de l’infrastructure : conteneurs, déploiement, supervision.',
+  concept: 'Des idées, protocoles et patterns à comprendre : ce ne sont pas des produits à installer.',
+};
+
+// Familles de métiers : regroupent les bulles de la page « Par métier » et leur donnent une couleur.
+export const ROLE_FAMILIES = {
+  dev: 'Développement',
+  data: 'Données',
+  ia: 'IA & machine learning',
+  infra: 'Infra & exploitation',
+} as const;
+
 export const LAYERS = {
   frontend: 'Frontend',
   mobile: 'Mobile',

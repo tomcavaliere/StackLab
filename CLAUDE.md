@@ -37,11 +37,12 @@ $env:PATH = "$PWD\.venv\Scripts;$env:PATH"; npm ci
 
 ```
 src/
-  content.config.ts      schémas Zod des 5 collections + ref() (références vérifiées)
+  content.config.ts      schémas Zod des 6 collections + ref() (références vérifiées)
   content/
     techs/<id>.md        fiches technos
     scenarios/<id>.md    scénarios du jeu
     companies/<id>.md    stacks d'entreprises
+    roles/<id>.md        métiers (data engineer, frontend…) : leur pile par étape, avec le rôle de chaque techno
     quiz/<id>.md         thèmes du quiz (questions à 2 technos)
     tech-quiz/<id>.md    quiz d'une techno (QCM en texte), id = id de sa fiche
   lib/
@@ -54,10 +55,12 @@ src/
   components/game/
     Game.tsx             îlot du jeu : pioche, plateau React Flow, résultats, lecture des animations
     flows.ts             étapes des animations (requête utilisateur, flux de données), fonction pure
+  components/roles/
+    Roles.tsx            îlot de la page « Par métier » : bulles, pile d'un métier, comparaison de deux métiers (diagramme de Venn)
   components/quiz/
     Quiz.tsx             îlot du quiz, pour les thèmes (2 technos) comme pour les technos (QCM) : session de 10 questions, clavier, feedback, bilan
   pages/
-    fiches/              liste filtrable + page fiche (enregistre une vue, lien vers son quiz avec la maîtrise)
+    fiches/              liste filtrable groupée par type (défaut), `metiers` (bulles par métier), page fiche (enregistre une vue, lien vers son quiz avec la maîtrise)
     jouer/               liste des scénarios + page de partie (îlot Game, debrief)
     entreprises/         liste + page entreprise (sources, ⚠ > 3 ans)
     quiz/                liste des thèmes et des technos (barres de maîtrise) + page de session d'un thème (îlot Quiz)
@@ -116,6 +119,13 @@ data/stacklab.db             base locale, ignorée par git
 6. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
 
 La fiche apparaît alors dans la liste des fiches, dans la liste des quiz si elle a le sien, et, si `layers` n'est pas vide, dans la pioche du jeu.
+
+## Procédure : ajouter ou modifier un métier
+
+1. Créer `src/content/roles/<id>.md` (frontmatter seul), en partant de `data-engineer.md`. Champs : `name`, `family` (`dev` `data` `ia` `infra`, vocabulaire `ROLE_FAMILIES`), `summary`, `mission`, `stack`.
+2. `stack` = les étapes du travail du métier, dans l'ordre : `{ step, intro, techs: [{ tech, why, essential? }] }`. `intro` explique ce qu'on cherche à faire à l'étape ; `why` dit à quoi la techno sert **pour ce métier** (la même techno a un `why` différent d'un métier à l'autre, c'est ce que la comparaison montre) ; `essential: true` = à apprendre en premier.
+3. Une techno ne figure qu'une fois par métier. Ne lister que des fiches existantes (`ref('techs')`). Une nouvelle fiche n'apparaît dans aucun métier tant qu'on ne l'y ajoute pas.
+4. `npm run build`. La page `/fiches/metiers?m=<id>,<id>` ouvre la page avec 1 ou 2 métiers sélectionnés.
 
 ## Procédure : ajouter un scénario
 
@@ -237,3 +247,4 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 - [x] Phase 7 : contenu enrichi : 20 fiches (dont 5 langages et 4 concepts d'API), 3 thèmes de quiz (Frameworks web & mobile, Langages, API & communication), 111 questions au total, verdicts des nouvelles cartes dans les 5 scénarios
 - [x] Phase 8 : un quiz par techno (68 quiz, 686 questions en QCM), maîtrise par techno sur les fiches, `/quiz` et `/progression`, 4 badges et 3 niveaux de plus
 - [x] Phase 9 : IA et machine learning : 25 fiches (LLM, RAG, embeddings, bases vectorielles, MLOps, bibliothèques ML, concepts) avec quiz, 2 thèmes de quiz (LLM & IA générative, Machine learning), 2 scénarios (assistant documentaire RAG, prédiction de résiliation), cartes de la couche `ml` dans l'animation de requête (tag `vectoriel` = recherche vectorielle avant l'appel au modèle)
+- [x] Phase 10 : liste des fiches groupée par type (défaut) + page « Par métier » (9 métiers, bulles, pile par étape, comparaison de deux métiers)
