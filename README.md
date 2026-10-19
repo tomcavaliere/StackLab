@@ -51,8 +51,8 @@ Sans configuration, la progression va dans le fichier local `data/stacklab.db`. 
 
 ## Déploiement
 
-1. **Turso** : créer une base `stacklab` (région Europe) sur [turso.tech](https://turso.tech), puis récupérer son URL (`libsql://…`) et un token.
-2. **Vercel** : importer le dépôt GitHub sur [vercel.com](https://vercel.com) (« Add New Project »), puis renseigner `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` et `STACKLAB_PASSWORD` dans Settings → Environment Variables. Mettre la région des fonctions en Europe (Settings → Functions).
+1. **Turso** : créer une base `stacklab` en région `aws-eu-west-1` (Irlande) sur [turso.tech](https://turso.tech), puis récupérer son URL (`libsql://…`) et un token.
+2. **Vercel** : importer le dépôt GitHub sur [vercel.com](https://vercel.com) (« Add New Project »), puis renseigner `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` et `STACKLAB_PASSWORD` dans Settings → Environment Variables. La région des fonctions est fixée par `vercel.json` (`dub1`, Dublin, comme la base Turso).
 3. Chaque `git push` sur `main` redéploie. Sur le téléphone, ouvrir l'URL Vercel, saisir le mot de passe (n'importe quel nom d'utilisateur), puis « Ajouter à l'écran d'accueil ».
 
 Les tables sont créées au premier appel. Pour reprendre une progression locale : `sqlite3 data/stacklab.db .dump > dump.sql`, puis `turso db shell stacklab < dump.sql`.

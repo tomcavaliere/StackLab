@@ -37,7 +37,7 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 
 ## Déploiement
 
-- **Vercel** (adapter `@astrojs/vercel`), relié au dépôt GitHub : chaque `git push` sur `main` redéploie. Les 3 variables sont dans les réglages du projet Vercel (Settings → Environment Variables) ; région des fonctions en Europe, près de la base.
+- **Vercel** (adapter `@astrojs/vercel`), relié au dépôt GitHub : chaque `git push` sur `main` redéploie. Les 3 variables sont dans les réglages du projet Vercel (Settings → Environment Variables). Région des fonctions : `vercel.json` (`dub1`, Dublin), la même que la base Turso (`aws-eu-west-1`).
 - **Turso** : SQLite hébergé (client `@libsql/client`), base `stacklab`. Le schéma s'applique tout seul au premier appel, comme en local.
 - **Mot de passe** : `src/middleware.ts`, Basic Auth sur toutes les requêtes (le nom d'utilisateur est ignoré). Le navigateur le demande une fois puis le mémorise.
 
