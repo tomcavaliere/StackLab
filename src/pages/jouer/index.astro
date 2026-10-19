@@ -12,7 +12,7 @@ const guessOf = (id: string) => companies.find((c) => c.data.scenario?.id === id
 <Base title="Jouer">
   <h1 class="text-2xl font-bold">Scénarios</h1>
   <p class="mt-1 text-slate-600">Lis le besoin du client, compose une stack couche par couche, puis compare-la au debrief.</p>
-  <ul class="mt-6 grid grid-cols-2 gap-4">
+  <ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
     {
       scenarios.map((s) => {
         const company = guessOf(s.id);

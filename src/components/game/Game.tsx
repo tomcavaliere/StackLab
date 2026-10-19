@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react';
 import {
   BaseEdge,
   getBezierPath,
@@ -51,11 +51,14 @@ const DRAG_TYPE = 'application/x-stacklab-tech';
 
 // Géométrie du diagramme (px) : une bande par couche, les cartes alignées dans leur bande.
 // Le viewport React Flow est figé (zoom 1, pas de pan) : coordonnées du flow = coordonnées dans le plateau.
+// Plateau étroit (téléphone) : le libellé de la couche passe au-dessus de ses cartes au lieu d'occuper une colonne.
 const LABEL_W = 190;
+const COMPACT_LABEL_H = 20;
+const COMPACT_W = 640; // largeur du plateau sous laquelle il passe en compact
 const CARD_W = 150;
 const CARD_H = 46;
 const GAP = 8;
-const PER_ROW = 5;
+const PER_ROW = 5; // au plus ; moins si le plateau est étroit
 const EMPTY_H = 44;
 const TOP = 60; // bande des acteurs (utilisateur, sources de données), départ des animations
 const STEP_MS = 2400;
@@ -77,22 +80,30 @@ const BADGE_STYLES: Record<CardVerdict, string> = {
 };
 
 type Band = { layer: Layer; y: number; height: number; cards: Card[] };
+type Geometry = { compact: boolean; labelW: number; labelH: number; perRow: number };
 
-function layout(cards: Card[]) {
+function geometry(width: number): Geometry {
+  const compact = width > 0 && width < COMPACT_W;
+  const labelW = compact ? GAP : LABEL_W;
+  const fit = Math.floor((width - labelW - GAP) / (CARD_W + GAP));
+  return { compact, labelW, labelH: compact ? COMPACT_LABEL_H : 0, perRow: width ? Math.max(1, Math.min(PER_ROW, fit)) : PER_ROW };
+}
+
+function layout(cards: Card[], g: Geometry) {
   let y = TOP;
   const bands: Band[] = LAYER_IDS.map((layer) => {
     const inLayer = cards.filter((c) => c.layer === layer);
-    const rows = Math.ceil(inLayer.length / PER_ROW);
-    const band = { layer, y, height: rows ? rows * (CARD_H + GAP) + GAP : EMPTY_H, cards: inLayer };
+    const rows = Math.ceil(inLayer.length / g.perRow);
+    const band = { layer, y, height: rows ? g.labelH + rows * (CARD_H + GAP) + GAP : EMPTY_H, cards: inLayer };
     y += band.height;
     return band;
   });
   return { bands, height: y };
 }
 
-const cardPosition = (band: Band, i: number) => ({
-  x: LABEL_W + (i % PER_ROW) * (CARD_W + GAP),
-  y: band.y + GAP + Math.floor(i / PER_ROW) * (CARD_H + GAP),
+const cardPosition = (band: Band, i: number, g: Geometry) => ({
+  x: g.labelW + (i % g.perRow) * (CARD_W + GAP),
+  y: band.y + g.labelH + GAP + Math.floor(i / g.perRow) * (CARD_H + GAP),
 });
 
 type Glow = 'active' | 'visited' | undefined;
@@ -147,7 +158,7 @@ function CardNode({ data }: NodeProps<CardNodeType>) {
       <span className="flex items-center justify-between gap-1">
         <span className="truncate font-medium">{data.name}</span>
         {data.onRemove && (
-          <button type="button" onClick={data.onRemove} className="nodrag text-slate-400 hover:text-red-600" aria-label="Retirer">
+          <button type="button" onClick={data.onRemove} className="nodrag -mr-1 px-1 text-slate-400 hover:text-red-600" aria-label="Retirer">
             ×
           </button>
         )}
@@ -191,8 +202,8 @@ const nodeTypes = { card: CardNode, actor: ActorNode };
 const edgeTypes = { flow: FlowEdge };
 
 const ACTORS = [
-  { id: USER, label: '👤 Utilisateur', x: LABEL_W },
-  { id: SOURCES, label: '🗄 Sources de données', x: LABEL_W + CARD_W + GAP },
+  { id: USER, label: '👤 Utilisateur', column: 0 },
+  { id: SOURCES, label: '🗄 Sources de données', column: 1 },
 ];
 
 export default function Game({ scenarioId, rules, referenceStack, techs, company }: Props) {
@@ -202,10 +213,21 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
   const [result, setResult] = useState<ScoreResult | null>(null);
   const [saveStatus, setSaveStatus] = useState('');
   const [hover, setHover] = useState<Layer | null>(null);
+  const [selected, setSelected] = useState<string | null>(null); // carte touchée dans la pioche, à poser d'un toucher sur une couche
   const board = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
   const [flow, setFlow] = useState<{ kind: FlowKind; steps: Step[]; index: number } | null>(null);
   const locked = result !== null;
-  const { bands, height } = layout(cards);
+  const geo = geometry(width);
+  const { bands, height } = layout(cards, geo);
+
+  useLayoutEffect(() => {
+    const el = board.current!;
+    setWidth(el.clientWidth);
+    const observer = new ResizeObserver(() => setWidth(el.clientWidth));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const flows = useMemo(
     () => ({ requete: buildFlow('requete', cards, techById), donnees: buildFlow('donnees', cards, techById) }),
     [cards, techById],
@@ -238,13 +260,24 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
     setHover(layerAt(e.clientY));
   }
 
+  function place(techId: string, layer: Layer | null) {
+    if (locked || !techId || !layer) return;
+    setCards((cs) => (cs.some((c) => c.techId === techId && c.layer === layer) ? cs : [...cs, { techId, layer }]));
+  }
+
   function onDrop(e: DragEvent) {
     e.preventDefault();
     setHover(null);
-    const techId = e.dataTransfer.getData(DRAG_TYPE);
+    place(e.dataTransfer.getData(DRAG_TYPE), layerAt(e.clientY));
+  }
+
+  // Au toucher (ou au clic) : la carte sélectionnée dans la pioche va dans la couche touchée.
+  function onBoardTap(e: MouseEvent) {
+    if (!selected || (e.target as Element).closest('button')) return;
     const layer = layerAt(e.clientY);
-    if (locked || !techId || !layer) return;
-    setCards((cs) => (cs.some((c) => c.techId === techId && c.layer === layer) ? cs : [...cs, { techId, layer }]));
+    if (!layer) return;
+    place(selected, layer);
+    setSelected(null);
   }
 
   const showDebrief = (show: boolean) => document.getElementById('debrief')?.toggleAttribute('hidden', !show);
@@ -252,6 +285,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
   async function validate() {
     const scored = scoreStack(rules, techLayers, cards);
     setResult(scored);
+    setSelected(null);
     showDebrief(true);
     setSaveStatus('Enregistrement…');
     try {
@@ -279,7 +313,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
   const actorNodes: ActorNodeType[] = ACTORS.map((a) => ({
     id: a.id,
     type: 'actor' as const,
-    position: { x: a.x, y: (TOP - 40) / 2 },
+    position: { x: geo.labelW + a.column * (CARD_W + GAP), y: (TOP - 40) / 2 },
     draggable: false,
     selectable: false,
     data: { label: a.label, glow: glowOf(a.id) },
@@ -291,7 +325,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
       return {
         id: nodeId(card),
         type: 'card' as const,
-        position: cardPosition(band, i),
+        position: cardPosition(band, i, geo),
         draggable: false,
         selectable: false,
         data: {
@@ -332,9 +366,19 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
 
   return (
     <div className="flex items-start gap-4">
-      <Deck techs={techs} disabled={locked} cards={cards} />
+      <Deck techs={techs} disabled={locked} cards={cards} selected={selected} onSelect={setSelected} />
 
-      <div className="min-w-0 flex-1">
+      <div className={`min-w-0 flex-1 ${locked ? '' : 'pb-16 md:pb-0'}`}>
+        {selected && (
+          <div className="sticky top-0 z-30 mb-2 flex items-center gap-3 rounded border border-blue-300 bg-blue-50 px-3 py-2 text-sm shadow-sm">
+            <span>
+              Touche une couche pour poser <b>{techById.get(selected)?.name}</b>
+            </span>
+            <button type="button" onClick={() => setSelected(null)} className="ml-auto px-2 text-slate-500" aria-label="Annuler">
+              ✕
+            </button>
+          </div>
+        )}
         <div
           ref={board}
           onDragOver={onDragOver}
@@ -349,7 +393,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
             className="absolute inset-x-0 top-0 flex items-center border-b border-slate-200 bg-slate-50 px-3 text-sm text-slate-400"
             style={{ height: TOP }}
           >
-            Point de départ
+            {!geo.compact && 'Point de départ'}
           </div>
           {bands.map((band) => {
             const required = rules.requiredLayers.includes(band.layer);
@@ -358,12 +402,16 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
               <div
                 key={band.layer}
                 data-layer={band.layer}
-                className={`absolute inset-x-0 flex items-center border-b border-slate-100 px-3 ${
-                  hover === band.layer ? 'bg-blue-100' : missing ? 'bg-red-50' : ''
-                }`}
+                className={`absolute inset-x-0 flex border-b border-slate-100 px-3 ${
+                  geo.compact && band.cards.length ? 'items-start pt-0.5' : 'items-center'
+                } ${hover === band.layer ? 'bg-blue-100' : missing ? 'bg-red-50' : ''}`}
                 style={{ top: band.y, height: band.height }}
               >
-                <span className="flex w-[178px] shrink-0 items-center gap-1.5 text-sm font-medium text-slate-700">
+                <span
+                  className={`flex shrink-0 items-center gap-1.5 font-medium text-slate-700 ${
+                    geo.compact ? 'mr-3 text-xs' : 'w-[178px] text-sm'
+                  }`}
+                >
                   {LAYERS[band.layer]}
                   {required && (
                     <span className={`rounded px-1 text-[10px] text-white ${missing ? 'bg-red-600' : 'bg-slate-700'}`}>
@@ -371,7 +419,11 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
                     </span>
                   )}
                 </span>
-                {band.cards.length === 0 && <span className="text-xs text-slate-300">déposer une carte ici</span>}
+                {band.cards.length === 0 && (
+                  <span className={`text-xs ${selected ? 'text-blue-500' : 'text-slate-300'}`}>
+                    {selected ? 'toucher pour poser ici' : geo.compact ? '' : 'déposer une carte ici'}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -391,11 +443,13 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
               nodesDraggable={false}
               nodesConnectable={false}
               elementsSelectable={false}
+              onPaneClick={onBoardTap}
+              onNodeClick={onBoardTap}
             />
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           {locked ? (
             <>
               <button type="button" onClick={edit} className={`${button} bg-slate-200 hover:bg-slate-300`}>
@@ -426,7 +480,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
             {cards.length} carte{cards.length > 1 ? 's' : ''} posée{cards.length > 1 ? 's' : ''}
           </span>
           <span className="text-sm text-slate-500">{saveStatus}</span>
-          <span className="ml-auto flex items-center gap-2">
+          <span className="flex flex-wrap items-center gap-2 md:ml-auto">
             {(Object.keys(FLOW_LABELS) as FlowKind[]).map((kind) => (
               <button
                 key={kind}
@@ -445,7 +499,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
         {flow && (
           <div
             data-flow-caption
-            className="fixed bottom-4 left-1/2 z-50 w-[760px] -translate-x-1/2 rounded-lg border border-blue-200 bg-white px-5 py-3 shadow-xl"
+            className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-[760px] -translate-x-1/2 rounded-lg border border-blue-200 bg-white px-4 py-3 shadow-xl md:px-5"
           >
             <div className="flex items-center gap-3 text-sm text-slate-500">
               <span className="font-semibold text-blue-800">{FLOW_LABELS[flow.kind]}</span>
@@ -488,9 +542,27 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
   );
 }
 
-function Deck({ techs, cards, disabled }: { techs: GameTech[]; cards: Card[]; disabled: boolean }) {
+// Ordi : colonne collante à gauche du plateau. Téléphone : tiroir fixé en bas de l'écran, replié dès qu'une carte est
+// choisie pour libérer le plateau, masqué une fois la stack validée.
+function Deck({
+  techs,
+  cards,
+  disabled,
+  selected,
+  onSelect,
+}: {
+  techs: GameTech[];
+  cards: Card[];
+  disabled: boolean;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
   const [query, setQuery] = useState('');
   const [layer, setLayer] = useState('');
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (selected) setOpen(false);
+  }, [selected]);
   const q = query.toLowerCase().trim();
   const shown = techs.filter(
     (t) =>
@@ -498,11 +570,24 @@ function Deck({ techs, cards, disabled }: { techs: GameTech[]; cards: Card[]; di
       (!layer || t.layers.includes(layer as Layer)),
   );
   const field = 'w-full rounded border border-slate-300 px-2 py-1 text-sm';
+  const mobileOnlyWhenOpen = open ? '' : 'hidden md:block';
 
   return (
-    <aside className="sticky top-4 flex max-h-[calc(100vh-2rem)] w-72 shrink-0 flex-col rounded border border-slate-200 bg-white">
-      <div className="space-y-2 border-b border-slate-200 p-3">
-        <div className="text-sm font-semibold">Pioche · {shown.length} cartes</div>
+    <aside
+      className={`fixed right-0 bottom-0 left-0 z-40 flex-col rounded-t-lg border-t border-slate-300 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.12)] md:sticky md:top-4 md:right-auto md:bottom-auto md:left-auto md:z-auto md:flex md:max-h-[calc(100vh-2rem)] md:w-72 md:shrink-0 md:rounded md:border md:border-slate-200 md:shadow-none ${
+        disabled ? 'hidden' : 'flex'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between px-4 py-3 text-sm font-semibold md:hidden"
+      >
+        Pioche · {shown.length} cartes
+        <span className="text-slate-500">{open ? '▼' : '▲'}</span>
+      </button>
+      <div className={`space-y-2 border-b border-slate-200 p-3 ${mobileOnlyWhenOpen}`}>
+        <div className="hidden text-sm font-semibold md:block">Pioche · {shown.length} cartes</div>
         <input type="search" placeholder="Rechercher…" value={query} onChange={(e) => setQuery(e.target.value)} className={field} />
         <select value={layer} onChange={(e) => setLayer(e.target.value)} className={field}>
           <option value="">Toutes les couches</option>
@@ -513,7 +598,7 @@ function Deck({ techs, cards, disabled }: { techs: GameTech[]; cards: Card[]; di
           ))}
         </select>
       </div>
-      <ul className="flex-1 space-y-1.5 overflow-y-auto p-2">
+      <ul className={`max-h-[45vh] flex-1 space-y-1.5 overflow-y-auto p-2 md:max-h-none ${mobileOnlyWhenOpen}`}>
         {shown.map((t) => {
           const placed = cards.filter((c) => c.techId === t.id).length;
           return (
@@ -525,9 +610,10 @@ function Deck({ techs, cards, disabled }: { techs: GameTech[]; cards: Card[]; di
                 e.dataTransfer.setData(DRAG_TYPE, t.id);
                 e.dataTransfer.effectAllowed = 'copy';
               }}
+              onClick={() => !disabled && onSelect(selected === t.id ? null : t.id)}
               className={`rounded border px-2 py-1.5 ${
                 disabled ? 'opacity-50' : 'cursor-grab hover:border-blue-400'
-              } ${placed ? 'border-blue-300 bg-blue-50' : 'border-slate-200'}`}
+              } ${selected === t.id ? 'border-blue-600 ring-2 ring-blue-400' : placed ? 'border-blue-300 bg-blue-50' : 'border-slate-200'}`}
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-medium">{t.name}</span>
@@ -535,6 +621,7 @@ function Deck({ techs, cards, disabled }: { techs: GameTech[]; cards: Card[]; di
                   href={`/fiches/${t.id}`}
                   target="_blank"
                   draggable={false}
+                  onClick={(e) => e.stopPropagation()}
                   className="shrink-0 text-[10px] text-slate-500 hover:text-blue-700"
                   title="Ouvrir la fiche dans un nouvel onglet"
                 >
@@ -574,7 +661,7 @@ function Results({
 
   return (
     <section className="mt-6 space-y-5">
-      <div className="flex items-baseline gap-4 rounded bg-white px-5 py-4">
+      <div className="flex flex-wrap items-baseline gap-x-4 rounded bg-white px-5 py-4">
         <span className={`text-5xl font-bold ${tone}`}>{result.score}</span>
         <span className="text-slate-500">/ 100</span>
         <span className="text-sm text-slate-500">
@@ -598,30 +685,32 @@ function Results({
         </p>
       ))}
 
-      <table className="w-full overflow-hidden rounded bg-white text-sm">
-        <thead className="bg-slate-100 text-left text-slate-600">
-          <tr>
-            <th className="px-3 py-2">Couche</th>
-            <th className="px-3 py-2">Techno</th>
-            <th className="px-3 py-2">Verdict</th>
-            <th className="px-3 py-2">Pourquoi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((c) => (
-            <tr key={`${c.layer}:${c.techId}`} className="border-t border-slate-100 align-top">
-              <td className="px-3 py-2 whitespace-nowrap">{LAYERS[c.layer]}</td>
-              <td className="px-3 py-2 whitespace-nowrap">{link(c.techId)}</td>
-              <td className="px-3 py-2">
-                <span className={`rounded px-1.5 py-0.5 text-xs whitespace-nowrap text-white ${BADGE_STYLES[c.verdict]}`}>
-                  {VERDICT_LABELS[c.verdict]}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-slate-700">{c.why}</td>
+      <div className="overflow-x-auto">
+        <table className="w-full overflow-hidden rounded bg-white text-sm">
+          <thead className="bg-slate-100 text-left text-slate-600">
+            <tr>
+              <th className="px-3 py-2">Couche</th>
+              <th className="px-3 py-2">Techno</th>
+              <th className="px-3 py-2">Verdict</th>
+              <th className="px-3 py-2">Pourquoi</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sorted.map((c) => (
+              <tr key={`${c.layer}:${c.techId}`} className="border-t border-slate-100 align-top">
+                <td className="px-3 py-2 whitespace-nowrap">{LAYERS[c.layer]}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{link(c.techId)}</td>
+                <td className="px-3 py-2">
+                  <span className={`rounded px-1.5 py-0.5 text-xs whitespace-nowrap text-white ${BADGE_STYLES[c.verdict]}`}>
+                    {VERDICT_LABELS[c.verdict]}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-slate-700">{c.why}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className="rounded bg-white px-5 py-4">
         <h2 className="text-lg font-semibold">Une stack de référence</h2>
@@ -651,38 +740,40 @@ function Results({
               {company.company}
             </a>
           </h2>
-          <table className="mt-2 w-full text-sm">
-            <thead className="text-left text-slate-500">
-              <tr>
-                <th className="py-1 pr-3">Couche</th>
-                <th className="py-1 pr-3">Techno</th>
-                <th className="py-1 pr-3">Confiance</th>
-                <th className="py-1">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...company.entries]
-                .sort((a, b) => LAYER_IDS.indexOf(a.layer) - LAYER_IDS.indexOf(b.layer))
-                .map((e) => (
-                  <tr key={`${e.layer}:${e.techId}`} className="border-t border-slate-100 align-top">
-                    <td className="py-1 pr-3 whitespace-nowrap">{LAYERS[e.layer]}</td>
-                    <td className="py-1 pr-3 whitespace-nowrap">{link(e.techId)}</td>
-                    <td className="py-1 pr-3">{CONFIDENCES[e.confidence]}</td>
-                    <td className="py-1">
-                      <a href={e.source} target="_blank" className="text-blue-700 underline">
-                        {e.sourceTitle}
-                      </a>{' '}
-                      <span className="text-slate-500">({e.sourceDate})</span>
-                      {new Date(e.sourceDate) < threeYearsAgo && (
-                        <span className="ml-1 rounded bg-amber-100 px-1 text-xs text-amber-800" title="Source de plus de 3 ans">
-                          ⚠ + de 3 ans
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="mt-2 w-full text-sm">
+              <thead className="text-left text-slate-500">
+                <tr>
+                  <th className="py-1 pr-3">Couche</th>
+                  <th className="py-1 pr-3">Techno</th>
+                  <th className="py-1 pr-3">Confiance</th>
+                  <th className="py-1">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...company.entries]
+                  .sort((a, b) => LAYER_IDS.indexOf(a.layer) - LAYER_IDS.indexOf(b.layer))
+                  .map((e) => (
+                    <tr key={`${e.layer}:${e.techId}`} className="border-t border-slate-100 align-top">
+                      <td className="py-1 pr-3 whitespace-nowrap">{LAYERS[e.layer]}</td>
+                      <td className="py-1 pr-3 whitespace-nowrap">{link(e.techId)}</td>
+                      <td className="py-1 pr-3">{CONFIDENCES[e.confidence]}</td>
+                      <td className="py-1">
+                        <a href={e.source} target="_blank" className="text-blue-700 underline">
+                          {e.sourceTitle}
+                        </a>{' '}
+                        <span className="text-slate-500">({e.sourceDate})</span>
+                        {new Date(e.sourceDate) < threeYearsAgo && (
+                          <span className="ml-1 rounded bg-amber-100 px-1 text-xs text-amber-800" title="Source de plus de 3 ans">
+                            ⚠ + de 3 ans
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>

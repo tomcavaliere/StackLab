@@ -55,13 +55,13 @@ const constraints = [
 
 <Base title={s.title} wide>
   <a href="/jouer" class="text-sm text-slate-500 hover:text-blue-700">← Scénarios</a>
-  <header class="mt-2 flex items-baseline gap-3">
+  <header class="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
     <h1 class="text-2xl font-bold">{s.title}</h1>
     <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{SCENARIO_TYPES[s.type]}</span>
     {company && <span class="text-sm font-medium text-violet-700">Devine la stack de {company.data.company}</span>}
   </header>
 
-  <div class="mt-4 grid grid-cols-[3fr_2fr] gap-6">
+  <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[3fr_2fr] md:gap-6">
     <blockquote class="rounded border-l-4 border-blue-400 bg-white px-5 py-4 leading-relaxed text-slate-800">
       <span class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Le besoin du client</span>
       {s.brief}
@@ -78,7 +78,11 @@ const constraints = [
     </dl>
   </div>
 
-  <p class="mt-4 mb-2 text-sm text-slate-500">
+  <p class="mt-4 mb-2 text-sm text-slate-500 md:hidden">
+    Touche une carte de la pioche (en bas de l'écran), puis la couche où la poser. Une même techno peut occuper plusieurs
+    couches. Les couches marquées « requise » doivent être remplies.
+  </p>
+  <p class="mt-4 mb-2 hidden text-sm text-slate-500 md:block">
     Glisse les cartes de la pioche vers les couches du diagramme. Une même techno peut occuper plusieurs couches. Les
     couches marquées « requise » doivent être remplies.
   </p>

@@ -49,7 +49,7 @@ const link = 'text-blue-700 underline';
 <Base title={d.name}>
   <article data-tech-id={tech.id}>
     <a href="/fiches" class="text-sm text-slate-500 hover:text-blue-700">← Fiches</a>
-    <header class="mt-2 flex items-baseline gap-3">
+    <header class="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-2">
       <h1 class="text-3xl font-bold">{d.name}</h1>
       <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{KINDS[d.kind]}</span>
       <span class="text-sm text-slate-500">

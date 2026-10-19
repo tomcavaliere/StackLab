@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   answerXp,
   isCorrect,
@@ -68,6 +68,7 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
   const [xp, setXp] = useState(0);
   const [saved, setSaved] = useState<SaveResult | null>(null);
   const [error, setError] = useState('');
+  const feedback = useRef<HTMLDivElement>(null);
 
   const name = (id: string) => techNames[id] ?? id;
   const round = rounds[index];
@@ -130,6 +131,11 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
     }
   }
 
+  // Sur téléphone, l'explication apparaît sous le pli : la faire défiler dans la vue.
+  useEffect(() => {
+    if (phase === 'feedback') feedback.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [phase, index]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (phase === 'question') {
@@ -163,7 +169,7 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-center gap-4 text-sm text-slate-600">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
         <span>
           Question {index + 1} / {rounds.length}
         </span>
@@ -181,9 +187,9 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
         <span className="ml-auto font-semibold text-blue-700">{xp} XP</span>
       </div>
 
-      <div className="mt-4 rounded border border-slate-200 bg-white px-6 py-5">
+      <div className="mt-4 rounded border border-slate-200 bg-white px-4 py-4 md:px-6 md:py-5">
         <span className={`rounded px-1.5 py-0.5 text-xs ${st.style}`}>{st.label}</span>
-        <p className="mt-3 text-2xl leading-snug font-semibold">{round.q.prompt}</p>
+        <p className="mt-3 text-xl leading-snug font-semibold md:text-2xl">{round.q.prompt}</p>
         {!techId && <p className="mt-1 text-sm text-slate-500">Quelle techno choisir ?</p>}
       </div>
 
@@ -195,7 +201,7 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
               type="button"
               disabled={phase !== 'question'}
               onClick={() => choose(i)}
-              className={`flex w-full items-center gap-4 rounded-lg border-2 px-5 py-4 text-left text-lg transition-colors ${optionStyle(option)}`}
+              className={`flex w-full items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors md:gap-4 md:px-5 md:py-4 md:text-lg ${optionStyle(option)}`}
             >
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-slate-100 text-sm font-semibold text-slate-500">
                 {i + 1}
@@ -208,11 +214,11 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
               type="button"
               disabled={phase !== 'question'}
               onClick={() => choose(i)}
-              className={`flex h-28 flex-col items-center justify-center rounded-lg border-2 text-xl font-semibold transition-colors ${optionStyle(option)}`}
+              className={`flex h-24 flex-col items-center justify-center rounded-lg border-2 px-2 text-lg font-semibold transition-colors md:h-28 md:text-xl ${optionStyle(option)}`}
             >
               {name(option)}
               {phase === 'question' && (
-                <span className="mt-1 text-xs font-normal text-slate-400">{keyHint(i, round.options.length)}</span>
+                <span className="mt-1 hidden text-xs font-normal text-slate-400 md:inline">{keyHint(i, round.options.length)}</span>
               )}
             </button>
           ),
@@ -221,11 +227,12 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
 
       {phase === 'feedback' && (
         <div
-          className={`mt-4 rounded border px-5 py-4 ${
+          ref={feedback}
+          className={`mt-4 scroll-mb-4 rounded border px-4 py-4 md:px-5 ${
             isCorrect(last) ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
           }`}
         >
-          <p className="flex items-baseline gap-3 font-semibold">
+          <p className="flex flex-wrap items-baseline gap-x-3 font-semibold">
             {isCorrect(last) ? (
               <>
                 <span className="text-emerald-700">✓ Bonne réponse</span>
@@ -239,14 +246,14 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
             )}
           </p>
           <p className="mt-2 text-slate-800">{round.q.why}</p>
-          <p className="mt-2 flex items-center gap-4 text-sm">
+          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {fiches.map((id) => (
               <a key={id} href={`/fiches/${id}`} target="_blank" className="text-blue-700 underline">
                 Fiche {name(id)} ↗
               </a>
             ))}
             <button type="button" onClick={next} className={`${button} ml-auto bg-blue-600 text-white hover:bg-blue-700`}>
-              {index + 1 < rounds.length ? 'Suivante' : 'Voir le bilan'} <span className="text-xs opacity-70">(Entrée)</span>
+              {index + 1 < rounds.length ? 'Suivante' : 'Voir le bilan'} <span className="hidden text-xs opacity-70 md:inline">(Entrée)</span>
             </button>
           </p>
         </div>
@@ -279,7 +286,7 @@ function Summary({
 
   return (
     <div className="max-w-3xl space-y-4">
-      <div className="flex items-baseline gap-4 rounded bg-white px-5 py-4">
+      <div className="flex flex-wrap items-baseline gap-x-4 rounded bg-white px-5 py-4">
         <span className={`text-5xl font-bold ${tone}`}>{good}</span>
         <span className="text-slate-500">/ {answers.length} bonnes réponses</span>
         {saved && <span className="xp-pop ml-auto text-2xl font-bold text-blue-700">+{saved.xpGained} XP</span>}
@@ -340,7 +347,7 @@ function Summary({
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button type="button" onClick={start} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
           Rejouer
         </button>

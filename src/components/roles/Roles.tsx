@@ -77,7 +77,7 @@ export default function Roles({ roles, techs }: Props) {
     <div>
       <p className="text-sm text-slate-600">{hint}</p>
 
-      <div className="mt-4 flex flex-wrap items-end gap-x-12 gap-y-8">
+      <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-8 md:gap-x-12">
         {families.map(([family, label]) => (
           <section key={family}>
             <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
@@ -145,7 +145,7 @@ function Overview({ all, techs, onPick }: { all: Indexed[]; techs: Record<string
   }, [all, techs]);
 
   return (
-    <div className="grid grid-cols-[1fr_1.4fr] items-start gap-6">
+    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[1fr_1.4fr]">
       <div className="rounded border border-slate-200 bg-white p-5">
         <h2 className="font-semibold">Comment lire cette page</h2>
         <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-slate-700">
@@ -202,7 +202,7 @@ function Detail({ role, all, techs, onCompare }: { role: Indexed; all: Indexed[]
   return (
     <article>
       <header className="rounded border border-slate-200 bg-white p-5">
-        <div className="flex items-baseline gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-3">
           <h2 className="text-2xl font-bold">{role.name}</h2>
           <span className="text-sm text-slate-500">{role.familyLabel}</span>
         </div>
@@ -221,7 +221,7 @@ function Detail({ role, all, techs, onCompare }: { role: Indexed; all: Indexed[]
             <div>
               <h3 className="text-lg font-semibold">{s.step}</h3>
               <p className="max-w-3xl text-sm text-slate-600">{s.intro}</p>
-              <ul className="mt-3 grid grid-cols-3 gap-3">
+              <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {s.techs.map((t) => {
                   const others = all.filter((r) => r.id !== role.id && r.byTech.has(t.id));
                   return (
@@ -301,21 +301,22 @@ function Compare({ a, b, techs }: { a: Indexed; b: Indexed; techs: Record<string
           : 'Aucune techno en commun : leurs piles sont distinctes. Ce qui les relie se situe plutôt dans la manière de travailler que dans les outils.'}
       </p>
 
-      <div className="mx-auto mt-6 w-[22rem]">
+      {/* En pourcentages : le diagramme rétrécit avec l'écran (22rem au plus, cercles de 14rem). */}
+      <div className="mx-auto mt-6 w-full max-w-[22rem]">
         <div className="flex justify-between gap-4 text-sm font-semibold">
-          <span className="w-40">{a.name}</span>
-          <span className="w-40 text-right">{b.name}</span>
+          <span className="w-[45%]">{a.name}</span>
+          <span className="w-[45%] text-right">{b.name}</span>
         </div>
-        <div className="relative mt-2 h-56">
-          <div className={`absolute top-0 left-0 h-56 w-56 rounded-full border-2 ${COLORS[a.family].venn}`} />
-          <div className={`absolute top-0 right-0 h-56 w-56 rounded-full border-2 ${COLORS[b.family].venn}`} />
-          {zone('4rem', onlyA.length, 'seulement')}
-          {zone('11rem', both.length, 'en commun')}
-          {zone('18rem', onlyB.length, 'seulement')}
+        <div className="relative mt-2 aspect-[22/14]">
+          <div className={`absolute top-0 left-0 aspect-square h-full rounded-full border-2 ${COLORS[a.family].venn}`} />
+          <div className={`absolute top-0 right-0 aspect-square h-full rounded-full border-2 ${COLORS[b.family].venn}`} />
+          {zone('18.2%', onlyA.length, 'seulement')}
+          {zone('50%', both.length, 'en commun')}
+          {zone('81.8%', onlyB.length, 'seulement')}
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-[1fr_1.5fr_1fr] gap-5">
+      <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-[1fr_1.5fr_1fr]">
         <Column title={`Seulement ${a.name}`} empty="Tout ce que ce métier utilise est aussi chez l’autre.">
           {onlyA.map((id) => (
             <Row key={id} id={id} techs={techs} lines={[[null, a.byTech.get(id)!]]} />

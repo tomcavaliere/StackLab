@@ -10,7 +10,7 @@ const entries = (c: (typeof companies)[number]) => Object.values(c.data.stack).f
 <Base title="Entreprises">
   <h1 class="text-2xl font-bold">Stacks d'entreprises</h1>
   <p class="mt-1 text-slate-600">Des stacks réelles, chaque techno avec sa source, sa date et un niveau de confiance.</p>
-  <ul class="mt-6 grid grid-cols-2 gap-4">
+  <ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
     {
       companies.map((c) => {
         const all = entries(c);

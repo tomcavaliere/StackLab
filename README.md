@@ -96,4 +96,4 @@ Ajouter une techno, un scénario ou un quiz revient à ajouter un fichier Markdo
 
 ## Hors périmètre
 
-Pas de comptes utilisateurs (un seul mot de passe), de CMS, d'i18n, de mode sombre, de SEO, d'analytics ni de version mobile soignée. Le projet vise la vitesse d'itération, pas la finition.
+Pas de comptes utilisateurs (un seul mot de passe), de CMS, d'i18n, de mode sombre, de SEO ni d'analytics. L'affichage s'adapte au téléphone (le jeu se joue au toucher). Le projet vise la vitesse d'itération, pas la finition.

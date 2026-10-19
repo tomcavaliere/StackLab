@@ -2,7 +2,7 @@
 
 App web perso pour comprendre le rôle de chaque techno dans une stack et s'entraîner à composer une stack pour un besoin donné. Un seul utilisateur. Déployée sur Vercel (accès depuis le téléphone), progression dans Turso, partagée entre le téléphone et l'ordi ; `npm run dev` en local. Optimiser pour la vitesse d'itération, pas pour la finition.
 
-Hors périmètre, à ne pas ajouter : comptes utilisateurs (un seul mot de passe suffit), CMS, i18n, dark mode, éditeur in-app, SEO, analytics, onboarding, audit d'accessibilité, responsive mobile (desktop seulement).
+Hors périmètre, à ne pas ajouter : comptes utilisateurs (un seul mot de passe suffit), CMS, i18n, dark mode, éditeur in-app, SEO, analytics, onboarding, audit d'accessibilité.
 
 ## Environnement : tout dans `.venv`
 
@@ -71,7 +71,7 @@ src/
     progress.ts          historique lu en base -> computeProgress, persistance des badges débloqués
     sources.ts           isOld() : source de plus de 3 ans
   components/game/
-    Game.tsx             îlot du jeu : pioche, plateau React Flow, résultats, lecture des animations
+    Game.tsx             îlot du jeu : pioche (tiroir en bas sur téléphone), plateau React Flow à la largeur de l'écran, résultats, lecture des animations
     flows.ts             étapes des animations (requête utilisateur, flux de données), fonction pure
   components/roles/
     Roles.tsx            îlot de la page « Par métier » : bulles, pile d'un métier, comparaison de deux métiers (diagramme de Venn)
@@ -101,7 +101,8 @@ data/stacklab.db             base locale (sans Turso), ignorée par git
 - **Tout est rendu à la demande** (`output: 'server'`, adapter `@astrojs/vercel`) : sur Vercel, des pages prérendues seraient servies sans passer par le middleware, donc sans mot de passe. Les pages dynamiques lisent leur entrée avec `getEntry(collection, Astro.params.id)` (404 si absente), pas de `getStaticPaths`. Hors `/progression`, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
 - **Scoring** (phase 2) : fonction pure dans `src/lib/scoring.ts`, indépendante de l'UI, testée avec Vitest. Calculée côté client, le résultat est envoyé tel quel à `/api/attempts`.
 - **Récompenses** (phase 6) : fonctions pures dans `src/lib/rewards.ts`, testées avec Vitest, partagées par le serveur et l'îlot Quiz. Tout est recalculé depuis l'historique brut ; seuls les badges débloqués sont stockés (avec leur date, sans régression possible).
-- **Jeu** (phase 3) : îlot React, diagramme et animation avec React Flow (`@xyflow/react`), drag HTML5 natif depuis la pioche. dnd-kit seulement si React Flow ne suffit pas.
+- **Jeu** (phase 3) : îlot React, diagramme et animation avec React Flow (`@xyflow/react`), drag HTML5 natif depuis la pioche à la souris ; au toucher (et au clic), toucher une carte de la pioche puis une couche. dnd-kit seulement si React Flow ne suffit pas.
+- **Téléphone et ordi** (phase 11) : un seul code, Tailwind mobile d'abord. Les classes sans préfixe visent le téléphone, `md:` (≥ 768 px) rétablit l'affichage ordi, qui ne doit pas changer. Grilles en `grid-cols-1 md:grid-cols-N`, tableaux larges dans un `overflow-x-auto`, lignes « titre + compteur » en `flex-wrap`. Sous 640 px de large, le plateau du jeu passe en compact (libellé au-dessus des cartes, moins de cartes par ligne). Vérifier à 390 px qu'aucune page ne défile horizontalement.
 
 ## Conventions
 
@@ -267,3 +268,4 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 - [x] Phase 8 : un quiz par techno (68 quiz, 686 questions en QCM), maîtrise par techno sur les fiches, `/quiz` et `/progression`, 4 badges et 3 niveaux de plus
 - [x] Phase 9 : IA et machine learning : 25 fiches (LLM, RAG, embeddings, bases vectorielles, MLOps, bibliothèques ML, concepts) avec quiz, 2 thèmes de quiz (LLM & IA générative, Machine learning), 2 scénarios (assistant documentaire RAG, prédiction de résiliation), cartes de la couche `ml` dans l'animation de requête (tag `vectoriel` = recherche vectorielle avant l'appel au modèle)
 - [x] Phase 10 : liste des fiches groupée par type (défaut) + page « Par métier » (9 métiers, bulles, pile par étape, comparaison de deux métiers)
+- [x] Phase 11 : déploiement (Vercel + Turso + mot de passe) et affichage téléphone (nav, grilles, quiz, par métier, jeu au toucher avec pioche en tiroir)

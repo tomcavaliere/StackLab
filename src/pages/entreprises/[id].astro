@@ -42,55 +42,57 @@ const oldCount = Object.values(c.stack)
     )
   }
 
-  <table class="mt-6 w-full overflow-hidden rounded bg-white text-sm">
-    <thead class="bg-slate-100 text-left text-slate-600">
-      <tr>
-        <th class="px-3 py-2">Couche</th>
-        <th class="px-3 py-2">Techno</th>
-        <th class="px-3 py-2">Confiance</th>
-        <th class="px-3 py-2">Type</th>
-        <th class="px-3 py-2">Date</th>
-        <th class="px-3 py-2">Source</th>
-      </tr>
-    </thead>
-    <tbody>
-      {
-        layers.flatMap((l) =>
-          c.stack[l]!.map((e) => {
-            const old = isOld(e.sourceDate);
-            return (
-              <tr class:list={['border-t border-slate-100 align-top', old && 'bg-amber-50']}>
-                <td class="px-3 py-2 whitespace-nowrap">{LAYERS[l]}</td>
-                <td class="px-3 py-2 whitespace-nowrap">
-                  <a href={`/fiches/${e.tech.id}`} class="font-medium text-blue-700 underline">
-                    {techs.get(e.tech.id)?.data.name}
-                  </a>
-                </td>
-                <td class="px-3 py-2">
-                  <span class={`rounded px-1.5 py-0.5 text-xs ${CONFIDENCE_STYLES[e.confidence]}`}>{CONFIDENCES[e.confidence]}</span>
-                </td>
-                <td class="px-3 py-2 whitespace-nowrap">{SOURCE_TYPES[e.sourceType]}</td>
-                <td class="px-3 py-2 whitespace-nowrap">
-                  {date(e.sourceDate)}
-                  {old && (
-                    <span class="ml-1 rounded bg-amber-200 px-1 text-xs text-amber-900" title="Source de plus de 3 ans">
-                      ⚠ + de 3 ans
-                    </span>
-                  )}
-                </td>
-                <td class="px-3 py-2">
-                  <a href={e.source} target="_blank" class="text-blue-700 underline">
-                    {e.sourceTitle}
-                  </a>
-                  {e.note && <p class="mt-0.5 text-slate-500">{e.note}</p>}
-                </td>
-              </tr>
-            );
-          }),
-        )
-      }
-    </tbody>
-  </table>
+  <div class="mt-6 overflow-x-auto">
+    <table class="w-full overflow-hidden rounded bg-white text-sm">
+      <thead class="bg-slate-100 text-left text-slate-600">
+        <tr>
+          <th class="px-3 py-2">Couche</th>
+          <th class="px-3 py-2">Techno</th>
+          <th class="px-3 py-2">Confiance</th>
+          <th class="px-3 py-2">Type</th>
+          <th class="px-3 py-2">Date</th>
+          <th class="px-3 py-2">Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          layers.flatMap((l) =>
+            c.stack[l]!.map((e) => {
+              const old = isOld(e.sourceDate);
+              return (
+                <tr class:list={['border-t border-slate-100 align-top', old && 'bg-amber-50']}>
+                  <td class="px-3 py-2 whitespace-nowrap">{LAYERS[l]}</td>
+                  <td class="px-3 py-2 whitespace-nowrap">
+                    <a href={`/fiches/${e.tech.id}`} class="font-medium text-blue-700 underline">
+                      {techs.get(e.tech.id)?.data.name}
+                    </a>
+                  </td>
+                  <td class="px-3 py-2">
+                    <span class={`rounded px-1.5 py-0.5 text-xs ${CONFIDENCE_STYLES[e.confidence]}`}>{CONFIDENCES[e.confidence]}</span>
+                  </td>
+                  <td class="px-3 py-2 whitespace-nowrap">{SOURCE_TYPES[e.sourceType]}</td>
+                  <td class="px-3 py-2 whitespace-nowrap">
+                    {date(e.sourceDate)}
+                    {old && (
+                      <span class="ml-1 rounded bg-amber-200 px-1 text-xs text-amber-900" title="Source de plus de 3 ans">
+                        ⚠ + de 3 ans
+                      </span>
+                    )}
+                  </td>
+                  <td class="px-3 py-2">
+                    <a href={e.source} target="_blank" class="text-blue-700 underline">
+                      {e.sourceTitle}
+                    </a>
+                    {e.note && <p class="mt-0.5 text-slate-500">{e.note}</p>}
+                  </td>
+                </tr>
+              );
+            }),
+          )
+        }
+      </tbody>
+    </table>
+  </div>
 
   <div class="md mt-6 max-w-3xl">
     <Content />
