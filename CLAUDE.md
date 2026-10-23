@@ -48,6 +48,7 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 | `npm run dev` | Serveur local sur http://localhost:4321 |
 | `npm run build` | Vérifie les sections des fiches et les quiz de techno (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
 | `npm test` | Tests Vitest (scoring, récompenses, parcours, révisions) |
+| `npm run check:exercises [ids]` | Exécute la solution de chaque exercice de l'atelier (SQL, Python, JavaScript, TypeScript) et la compare à `expected` |
 | `sqlite3 data/stacklab.db` | Interroger la progression locale (sans `.env` Turso) |
 | `turso db shell stacklab` | Interroger la progression en ligne (CLI Turso, ou l'éditeur SQL du dashboard turso.tech) |
 
@@ -55,7 +56,7 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 
 ```
 src/
-  content.config.ts      schémas Zod des 7 collections + ref() (références vérifiées)
+  content.config.ts      schémas Zod des 8 collections + ref() (références vérifiées)
   content/
     techs/<id>.md        fiches technos
     scenarios/<id>.md    scénarios du jeu
@@ -64,6 +65,7 @@ src/
     quiz/<id>.md         thèmes du quiz (questions à 2 technos)
     tech-quiz/<id>.md    quiz d'une techno (QCM en texte), id = id de sa fiche
     parcours/parcours.md le parcours guidé : unités dans l'ordre, chacune avec ses leçons (fiches), ses thèmes, ses scénarios
+    exercises/<id>.md    exercices de code d'une fiche langage (atelier), id = id de sa fiche
   lib/
     taxonomy.ts          vocabulaires contrôlés (kinds, couches, verdicts…) : slug -> libellé
     db.ts, schema.sql    client libSQL (Turso, ou fichier local) : ouverture paresseuse, schéma (IF NOT EXISTS) appliqué à chaque ouverture
@@ -80,12 +82,16 @@ src/
     Roles.tsx            îlot de la page « Par métier » : bulles, pile d'un métier, comparaison de deux métiers (diagramme de Venn)
   components/quiz/
     Quiz.tsx             îlot du quiz, pour les thèmes (2 technos), les technos (QCM), les révisions (quiz mélangés) et le renforcement : session de 10 questions, clavier, feedback, bilan qui enchaîne sur l'étape suivante
+  components/atelier/
+    Atelier.tsx          îlot de l'atelier d'une fiche langage (ordi seulement) : éditeur, exécution, comparaison à la sortie attendue ; sinon copie vers le playground
+    runner.worker.ts     worker qui exécute le code (sql.js, Pyodide depuis le CDN, sucrase) ; arrêté et recréé après 10 s
+    run.ts               exécution par langage, partagée avec scripts/check-exercises.mjs
   pages/
     index.astro          le parcours : révisions du jour, prochaine étape, unités et leurs étapes
     revisions.astro      session de révision du jour (îlot Quiz en mode révision)
     renforcement.astro   les questions jamais vues des étapes validées, quiz par quiz (liens vers les pages de quiz en `?renforcement`)
     verrou.astro         page d'une étape verrouillée (les pages de quiz, scénario, entreprise y redirigent)
-    fiches/              bibliothèque : un onglet par type (`?type=`), vue d'un tag (`?tag=`), `metiers` (bulles par métier), page fiche (enregistre une vue côté serveur, ouvre son quiz si le parcours y est)
+    fiches/              bibliothèque : un onglet par type (`?type=`), vue d'un tag (`?tag=`), `metiers` (bulles par métier), page fiche (enregistre une vue côté serveur, ouvre son quiz si le parcours y est, atelier « S'exercer » pour un langage)
     jouer/               liste des scénarios + page de partie (îlot Game, debrief)
     entreprises/         liste + page entreprise (sources, ⚠ > 3 ans)
     quiz/                liste des thèmes et des technos (barres de maîtrise) + page de session d'un thème (îlot Quiz ; `?renforcement` : les questions jamais vues)
@@ -97,7 +103,8 @@ src/
     api/progress.ts      GET : XP, niveau, série, maîtrise par thème et par techno, badges, confusions, révisions dues, prochaine étape
   layouts/Base.astro
   middleware.ts          mot de passe (Basic Auth) devant toutes les requêtes, si STACKLAB_PASSWORD est défini
-scripts/check-content.mjs    ce que Zod ne voit pas : sections imposées des fiches, quiz de techno sans fiche (erreur), fiche sans quiz (avertissement)
+scripts/check-content.mjs    ce que Zod ne voit pas : sections imposées des fiches (2 de plus pour un langage), quiz de techno ou exercices sans fiche (erreur), fiche sans quiz (avertissement)
+scripts/check-exercises.mjs  hors build : exécute les solutions des exercices (mêmes moteurs que l'atelier, Pyodide en paquet npm)
 scripts/check-quality.mjs    hors build : cartes sans verdict par scénario (`verdicts`), bonne réponse trop souvent la plus longue (`lengths [ids]`)
 .claude/skills/              nouvelle-fiche, quiz-techno, quiz-theme : procédures de rédaction pas à pas
 data/stacklab.db             base locale (sans Turso), ignorée par git
@@ -106,6 +113,7 @@ data/stacklab.db             base locale (sans Turso), ignorée par git
 - **Le contenu est de la donnée** : un fichier Markdown + frontmatter par entité, validé au build. Ajouter une techno, c'est ajouter un fichier, sans toucher au code.
 - **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`, `quiz_sessions`, `quiz_answers`, `badges`), jamais de contenu. Les ids de tech, de scénario, de thème et de question y sont des ids de contenu, sans clé étrangère possible. Une session du quiz d'une techno est une session de quiz comme une autre, avec `theme_id = 'tech:<id de la fiche>'` et le texte des options dans `chosen_tech` / `correct_tech`.
 - **Parcours** (phase 12) : un seul chemin, décrit dans `parcours.md` ; tout est recalculé depuis l'historique (`path.ts`), sans table dédiée. Les fiches se lisent toutes ; les quiz, scénarios et entreprises sont verrouillés côté serveur tant que le parcours n'y est pas (redirection vers `/verrou`). La nav montre Parcours, Révisions, Renforcement, Fiches, Progression : `/quiz`, `/jouer`, `/entreprises` restent accessibles depuis le parcours.
+- **Atelier** (phase 13) : sur les fiches langage, exercices de code facultatifs, hors parcours et sans enregistrement en base. SQL, Python, JavaScript et TypeScript s'exécutent dans le navigateur (WebAssembly, worker). Les 8 autres langages renvoient vers leur playground. L'îlot n'est chargé qu'à partir de 768 px (`client:media`), le téléphone affiche une simple mention.
 - **Tout est rendu à la demande** (`output: 'server'`, adapter `@astrojs/vercel`) : sur Vercel, des pages prérendues seraient servies sans passer par le middleware, donc sans mot de passe. Les pages dynamiques lisent leur entrée avec `getEntry(collection, Astro.params.id)` (404 si absente), pas de `getStaticPaths`. Hors `/progression`, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
 - **Scoring** (phase 2) : fonction pure dans `src/lib/scoring.ts`, indépendante de l'UI, testée avec Vitest. Calculée côté client, le résultat est envoyé tel quel à `/api/attempts`.
 - **Récompenses** (phase 6) : fonctions pures dans `src/lib/rewards.ts`, testées avec Vitest, partagées par le serveur et l'îlot Quiz. Tout est recalculé depuis l'historique brut ; seuls les badges débloqués sont stockés (avec leur date, sans régression possible).
@@ -141,9 +149,12 @@ data/stacklab.db             base locale (sans Turso), ignorée par git
    | `alternatives` | `- { tech: <id>, note: "quand choisir l'autre" }`. Optionnel. Affichées dans les deux sens : déclarer A→B suffit. |
    | `integratesWith` | même format, pour les technos compatibles. Optionnel. |
 
-3. Écrire le corps avec exactement ces 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`. Les sections « Alternatives » et « S'intègre avec » sont générées depuis le frontmatter.
+3. Écrire le corps avec ces 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`. Les sections « Alternatives » et « S'intègre avec » sont générées depuis le frontmatter. **Langage** : 2 titres de plus, entre « Quand l'éviter » et « Pour aller plus loin » :
+   - `## Syntaxe`, en `###` avec un court bloc de code chacun : variables, conditions, boucles, collections, fonctions, particularités ;
+   - `## Exemples concrets` : 2 ou 3 extraits réalistes.
+   Ensuite, ses exercices (procédure ci-dessous).
 4. **Si `layers` n'est pas vide**, ajouter un verdict pour la fiche dans chaque scénario dont les couches requises ou optionnelles croisent les siennes. Sans verdict, la carte sort « non évaluée » (grise, hors score) dans ce scénario.
-5. Écrire son quiz : `src/content/tech-quiz/<id>.md` (procédure « quiz d'une techno » ci-dessous).
+5. Écrire son quiz : `src/content/tech-quiz/<id>.md` (procédure « quiz d'une techno » ci-dessous). Chaque réponse du quiz doit se trouver dans la fiche.
 6. **La placer dans le parcours** : ajouter son id aux `lessons` d'une unité de `src/content/parcours/parcours.md`. Le build échoue si une fiche manque au parcours, y figure deux fois ou n'a pas de quiz.
 7. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
 
@@ -200,7 +211,7 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
 
 ## Procédure : écrire ou compléter le quiz d'une techno
 
-Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l'utiliser ou l'éviter), pas sur le choix entre deux technos : c'est le rôle des thèmes.
+Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l'utiliser ou l'éviter), pas sur le choix entre deux technos : c'est le rôle des thèmes. **Il ne pose que ce que la fiche documente** : la leçon du parcours, c'est lire la fiche puis passer le quiz. Une question sur une commande ou une syntaxe absente de la fiche oblige d'abord à compléter la fiche.
 
 1. Créer `src/content/tech-quiz/<id>.md`, où `<id>` est l'id de la fiche (frontmatter seul, une clé `questions`, au moins 5 ; les quiz actuels en ont 30, une session en pose 10, les autres arrivent par les révisions).
 2. Chaque question :
@@ -250,6 +261,21 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 - C'est facultatif, quiz par quiz : une techno qu'on ne renforce pas ne ramène en révision que ses questions déjà vues. Une fois répondue, une question entre dans les révisions comme les autres.
 - Une session de renforcement est une session de quiz normale (XP, maîtrise, badges). Sur une étape non validée, `?renforcement` redirige vers `/renforcement`.
 
+## Procédure : écrire les exercices de code d'un langage (atelier)
+
+1. Créer `src/content/exercises/<id>.md`, où `<id>` est l'id de la fiche langage (frontmatter seul), en partant de `sql.md` (exécuté dans le navigateur) ou de `go.md` (playground).
+2. Champs :
+   - `playground` : URL du bac à sable officiel, obligatoire hors de `sql`, `python`, `javascript` et `typescript`. `playgroundNote` s'il n'est pas officiel ;
+   - `exercises` : environ 6, alignés sur les sous-sections de « Syntaxe », le dernier étant un cas concret. Chacun a les champs `id` (kebab-case, unique), `title`, `prompt`, `starter` (le code de départ, qui ne doit pas déjà donner la bonne sortie), `solution`, `expected` et, en SQL seulement, `setup`.
+   - `expected` est la sortie exacte de la solution :
+     - Python : `print` ;
+     - JavaScript et TypeScript : `console.log`, avec tableaux et objets affichés en JSON (`[1,2]`) ;
+     - SQL : pour chaque résultat, l'en-tête puis une ligne par résultat, au format `a | b`, NULL écrit `NULL`.
+     Les fins de ligne et les espaces de fin sont ignorés.
+3. SQL tourne sous SQLite (sql.js) et Python sous Pyodide, à la version `PYODIDE_VERSION` de `run.ts`, égale au paquet npm `pyodide`. TypeScript est exécuté sans vérification des types.
+4. `npm run check:exercises <id>` exécute les solutions. Pour un langage à playground, vérifier les sorties dans le playground ou avec l'outil local.
+5. `npm run build` : il échoue si le fichier ne correspond à aucune fiche langage, si un langage non exécutable n'a pas de playground, si un id est en double ou s'il manque `expected` à un exercice exécutable.
+
 ## Procédure : ajouter ou mettre à jour une stack d'entreprise (workflow de recherche)
 
 À suivre quand l'utilisateur demande « ajoute / mets à jour la stack de X ».
@@ -287,6 +313,7 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
    ```
 8. **Chaque fiche a son quiz** : `npm run build` n'affiche aucun avertissement « Fiches sans quiz ». Une session de quiz de techno apparaît dans la requête du critère 7 avec `theme_id = tech:<id>`, et sa maîtrise sur la fiche, sur `/quiz` et sur `/progression`.
 9. **Parcours** : `npm test` couvre les règles ; retirer une fiche de `parcours.md` (ou la mettre deux fois, ou placer un thème avant une techno qu'il cite) fait échouer le build. Sur une base neuve, seule la fiche SQL et son quiz sont ouverts ; `/quiz/techno/python` redirige vers `/verrou`. Après la leçon SQL, `/revisions` ne contient que des questions de cette session ; `/renforcement` affiche SQL « 10 / 30 questions vues » et ne sert que des questions jamais vues.
+10. **Langages et atelier** : une fiche langage sans `## Syntaxe` fait échouer le build ; `npm run check:exercises` passe ; sur ordi, la fiche SQL montre l'atelier, une bonne solution donne ✓, une boucle infinie JavaScript est arrêtée à 10 s ; sur téléphone, l'atelier n'est pas chargé.
 
 ## Avancement
 
@@ -303,3 +330,4 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 - [x] Phase 10 : liste des fiches groupée par type (défaut) + page « Par métier » (9 métiers, bulles, pile par étape, comparaison de deux métiers)
 - [x] Phase 11 : déploiement (Vercel + Turso + mot de passe) et affichage téléphone (nav, grilles, quiz, par métier, jeu au toucher avec pioche en tiroir)
 - [x] Phase 12 : parcours guidé (8 unités, 119 étapes : fiche → quiz → thème → scénario → entreprise), révisions espacées façon Anki (questions déjà vues seulement), renforcement des questions restantes, bibliothèque des fiches en onglets par type, nav à 5 entrées
+- [x] Phase 13 : langages : sections Syntaxe et Exemples concrets dans les 12 fiches langage (chaque réponse de leur quiz y figure), atelier de code (74 exercices ; SQL, Python, JavaScript, TypeScript exécutés dans le navigateur, playground pour les 8 autres)

@@ -22,7 +22,11 @@ Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `ex
 - **Frontmatter** : `name`, `kind`, `layers`, `languages` (ids des langages dans lesquels *on écrit*), `tags`, `difficulty` (1 à 3), `summary` (une phrase, affichée sur les cartes et dans l'animation), `alternatives`, `integratesWith`.
 - **Tags** : réutiliser l'existant avant d'en créer : `grep -h "^tags:" src/content/techs/*.md | tr -d '[]' | sed 's/tags://' | tr ',' '\n' | sed 's/ //g' | sort | uniq -c | sort -rn`. Le tag `streaming` sur une carte de cache-messaging, et `vectoriel` sur une base vectorielle, changent l'animation du jeu : ne les mettre qu'à bon escient.
 - **Relations** : une relation déclarée dans un seul sens s'affiche des deux côtés. Ne pas la déclarer deux fois, et ne référencer que des fiches existantes, sinon le build échoue.
-- **Corps** : exactement 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`.
+- **Corps** : 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`.
+- **Langage** (`kind: langage`) : 2 titres de plus, entre « Quand l'éviter » et « Pour aller plus loin » :
+  - `## Syntaxe`, découpé en `###` avec un court bloc de code chacun : variables et types, conditions, boucles, collections, fonctions, puis les particularités du langage ;
+  - `## Exemples concrets` : 2 ou 3 extraits réalistes et commentés.
+  Le build les exige. Modèle : `sql.md` ou `python.md`.
 - **Style** : phrases courtes et concrètes, ton pédagogique, sans marketing. Typographie française (espace avant « : ; ? ! », guillemets « »).
 
 ## 3. Exactitude
@@ -39,9 +43,10 @@ Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `ex
 - Le `why` justifie le verdict par les contraintes du scénario (équipe, budget, volume…), pas par des généralités.
 - Relancer jusqu'à « OK » partout.
 
-## 5. Quiz, parcours et validation
+## 5. Quiz, exercices, parcours et validation
 
-- Écrire le quiz de la fiche avec le skill `quiz-techno` : sans quiz, la fiche ne peut pas être une leçon du parcours.
+- Écrire le quiz de la fiche avec le skill `quiz-techno` : sans quiz, la fiche ne peut pas être une leçon du parcours. Chaque réponse du quiz doit se trouver dans la fiche.
+- **Langage** : écrire ses exercices, `src/content/exercises/<id>.md` (procédure « exercices de code » dans CLAUDE.md). Pour SQL, Python, JavaScript et TypeScript, `npm run check:exercises <id>` exécute les solutions. Pour les autres langages, vérifier les sorties avec leur playground.
 - Placer la fiche dans `src/content/parcours/parcours.md` : ajouter son id aux `lessons` de l'unité qui lui correspond, à sa place dans l'ordre (difficulté croissante, prérequis d'abord). Le build échoue si une fiche manque au parcours ou y figure deux fois, et si un thème cite une techno placée dans une unité suivante.
 - `npm run build` doit passer. Une erreur `EPERM` lors du « Rearranging server assets » vient d'un fichier verrouillé dans `dist` : supprimer `dist` (`rm -rf dist`) et relancer.
 - Si le serveur de dev tourne, il ne revalide pas une fiche dont la cible vient d'apparaître : réenregistrer le fichier.

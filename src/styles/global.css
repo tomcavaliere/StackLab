@@ -9,6 +9,9 @@
 .md li { @apply my-1; }
 .md a { @apply text-blue-700 underline; }
 .md code { @apply rounded bg-slate-100 px-1 text-sm; }
+/* Blocs de code (colorés par Shiki au build) : défilent dans leur cadre, jamais la page. */
+.md pre { @apply my-3 overflow-x-auto rounded p-3 text-sm leading-snug; }
+.md pre code { @apply bg-transparent p-0 text-[length:inherit]; }
 .md strong { @apply font-semibold; }
 
 /* Gain d'XP au quiz : petit rebond à l'apparition. */

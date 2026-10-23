@@ -13,6 +13,7 @@ Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `ex
 
 - Le fichier s'appelle `src/content/tech-quiz/<id>.md`, où `<id>` est l'id exact de la fiche. La fiche doit exister.
 - **Lire la fiche d'abord** : les questions portent sur ce qu'elle dit (rôle, mécanismes, quand l'utiliser, quand l'éviter). Le choix entre deux technos relève des thèmes (skill `quiz-theme`).
+- **La fiche documente chaque réponse** : la leçon du parcours, c'est lire la fiche puis passer le quiz. Une question dont la réponse n'est pas dans la fiche (une commande, une syntaxe, une date) oblige d'abord à compléter la fiche. Pour un langage, c'est en général dans sa section `## Syntaxe`.
 - **Modèles** : `src/content/tech-quiz/redis.md`, `src/content/tech-quiz/postgresql.md`.
 - **Compléter un quiz existant** : ne jamais renommer ni réutiliser un `id` de question, car il porte l'historique en base. Le texte des options peut être corrigé. Pour changer le sens d'une question, en créer une nouvelle.
 

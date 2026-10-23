@@ -278,4 +278,39 @@ const parcours = defineCollection({
     }),
 });
 
-export const collections = { techs, roles, scenarios, companies, quiz, techQuiz, parcours };
+// Exercices de code d'une fiche langage (src/content/exercises/<id de la fiche>.md), pour l'atelier de la fiche.
+// Sans playground, l'exercice s'exécute dans le navigateur (SQL, Python, JavaScript, TypeScript) et sa sortie est vérifiée :
+// expected est alors obligatoire. La correspondance avec la fiche est vérifiée par scripts/check-content.mjs.
+const exercises = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/exercises' }),
+  schema: z
+    .strictObject({
+      playground: z.url().optional(), // bac à sable externe pour les langages qu'on n'exécute pas dans le navigateur
+      playgroundNote: z.string().optional(), // ex. « bac à sable communautaire, non officiel »
+      exercises: z
+        .array(
+          z.strictObject({
+            id: questionId,
+            title: z.string(),
+            prompt: z.string(),
+            setup: z.string().optional(), // SQL : tables et lignes créées avant le code
+            starter: z.string(),
+            solution: z.string(),
+            expected: z.string().optional(), // sortie attendue (stdout ; SQL : en-tête puis lignes « a | b »)
+          }),
+        )
+        .min(1),
+    })
+    .superRefine((e, ctx) => {
+      const seen = new Set<string>();
+      e.exercises.forEach((x, i) => {
+        if (seen.has(x.id)) ctx.addIssue({ code: 'custom', path: ['exercises', i, 'id'], message: `id d'exercice "${x.id}" en double` });
+        seen.add(x.id);
+        if (!e.playground && x.expected === undefined) {
+          ctx.addIssue({ code: 'custom', path: ['exercises', i, 'expected'], message: 'expected obligatoire pour un exercice exécuté dans le navigateur' });
+        }
+      });
+    }),
+});
+
+export const collections = { techs, roles, scenarios, companies, quiz, techQuiz, parcours, exercises };

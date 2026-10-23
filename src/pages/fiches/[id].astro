@@ -6,6 +6,8 @@ import { CONFIDENCES, DIFFICULTIES, KINDS, LAYERS, type Layer } from '../../lib/
 import { getDb } from '../../lib/db';
 import { loadLearning } from '../../lib/progress';
 import { stepOf } from '../../lib/path';
+import Atelier from '../../components/atelier/Atelier';
+import { RUNNABLE, type Lang } from '../../components/atelier/run';
 
 const tech = await getEntry('techs', Astro.params.id!);
 if (!tech) return new Response('Introuvable', { status: 404 });
@@ -21,6 +23,9 @@ const byId = new Map(all.map((t) => [t.id, t]));
 const companies = await getCollection('companies');
 const quiz = (await getCollection('techQuiz')).find((q) => q.id === tech.id);
 const d = tech.data;
+// Atelier (fiches langage) : exécuté dans le navigateur pour les langages de RUNNABLE, sinon via le playground du fichier.
+const exercises = await getEntry('exercises', tech.id);
+const lang = RUNNABLE.includes(tech.id) && !exercises?.data.playground ? (tech.id as Lang) : undefined;
 
 type Link = { tech: CollectionEntry<'techs'>; note: string };
 
@@ -167,6 +172,29 @@ const link = 'text-blue-700 underline';
     <div class="md mt-4 max-w-3xl">
       <Content />
     </div>
+
+    {
+      exercises && (
+        <section class="mt-8 max-w-3xl">
+          <h2 class="text-lg font-semibold">S'exercer</h2>
+          <p class="mt-1 text-sm text-slate-600 md:hidden">Les exercices de code sont disponibles sur ordi.</p>
+          <div class="hidden md:block">
+            <p class="mt-1 mb-3 text-sm text-slate-600">
+              {lang
+                ? `Le code s'exécute dans ton navigateur et sa sortie est comparée à celle attendue.${lang === 'typescript' ? ' Les types sont retirés avant exécution, sans être vérifiés.' : ''} Rien n'est enregistré : c'est un bonus, hors parcours.`
+                : `Écris ta solution ici, puis copie-la dans ${new URL(exercises.data.playground!).host} pour l'exécuter${exercises.data.playgroundNote ? ` (${exercises.data.playgroundNote})` : ''}. Rien n'est enregistré : c'est un bonus, hors parcours.`}
+            </p>
+            <Atelier
+              client:media="(min-width: 768px)"
+              lang={lang}
+              playground={exercises.data.playground}
+              playgroundLabel={exercises.data.playground && new URL(exercises.data.playground).host}
+              exercises={exercises.data.exercises}
+            />
+          </div>
+        </section>
+      )
+    }
 
     {
       sections.map(
