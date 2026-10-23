@@ -7,13 +7,22 @@ interface Props {
 }
 const { title, wide = false } = Astro.props;
 const path = Astro.url.pathname;
+// Le parcours (accueil) mène aux quiz, scénarios et entreprises au fil des étapes : ils ne sont pas dans la nav.
 const nav = [
+  ['/', 'Parcours'],
+  ['/revisions', 'Révisions'],
+  ['/renforcement', 'Renforcement'],
   ['/fiches', 'Fiches'],
-  ['/quiz', 'Quiz'],
-  ['/jouer', 'Jouer'],
-  ['/entreprises', 'Entreprises'],
   ['/progression', 'Progression'],
 ];
+// Une page de quiz en renforcement (?renforcement) relève de l'onglet Renforcement, pas du parcours.
+const reinforce = Astro.url.searchParams.has('renforcement');
+const active = (href: string) =>
+  href === '/renforcement'
+    ? path.startsWith(href) || reinforce
+    : href === '/'
+      ? !reinforce && ['/', '/quiz', '/jouer', '/entreprises', '/verrou'].some((p) => (p === '/' ? path === '/' : path.startsWith(p)))
+      : path.startsWith(href);
 ---
 
 <!doctype html>
@@ -30,8 +39,9 @@ const nav = [
       <div class="order-last -mx-4 flex w-[calc(100%+2rem)] gap-5 overflow-x-auto px-4 whitespace-nowrap md:order-none md:mx-0 md:w-auto md:gap-6 md:overflow-visible md:px-0">
         {
           nav.map(([href, label]) => (
-            <a href={href} class:list={['hover:text-blue-700', path.startsWith(href) && 'text-blue-700 font-medium']}>
+            <a href={href} class:list={['hover:text-blue-700', active(href) && 'text-blue-700 font-medium']}>
               {label}
+              {href === '/revisions' && <span id="reviews-count" hidden class="ml-0.5 rounded-full bg-violet-600 px-1.5 text-xs text-white" />}
             </a>
           ))
         }
@@ -49,11 +59,26 @@ const nav = [
   function refresh() {
     fetch('/api/progress')
       .then((r) => r.json())
-      .then(({ xp, level, streak }: { xp: number; level: { number: number; name: string }; streak: { current: number; today: boolean } }) => {
+      .then(
+        ({
+          xp,
+          level,
+          streak,
+          reviewsDue,
+        }: {
+          xp: number;
+          level: { number: number; name: string };
+          streak: { current: number; today: boolean };
+          reviewsDue: number;
+        }) => {
+        const count = document.getElementById('reviews-count')!;
+        count.textContent = String(reviewsDue);
+        count.hidden = reviewsDue === 0;
         const widget = document.getElementById('progress-widget')!;
         widget.textContent = `Niv. ${level.number} ${level.name} · ${xp} XP · 🔥 ${streak.current}`;
         widget.title = streak.today ? 'Série du jour validée' : 'Joue aujourd’hui pour faire vivre ta série';
-      });
+        },
+      );
   }
   refresh();
   window.addEventListener('stacklab:progress', refresh);

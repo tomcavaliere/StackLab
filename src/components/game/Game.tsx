@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { CONFIDENCES, KINDS, LAYERS, VERDICTS, type Kind, type Layer } from '../../lib/taxonomy';
 import { scoreStack, type Card, type CardVerdict, type ScenarioRules, type ScoreResult } from '../../lib/scoring';
 import { buildFlow, FLOW_LABELS, nodeId, SOURCES, USER, type FlowKind, type Step } from './flows';
+import { PASS } from '../../lib/path';
 
 export interface GameTech {
   id: string;
@@ -670,6 +671,19 @@ function Results({
           {result.antiPatterns.length > 0 && ` · anti-patterns : −${result.antiPatterns.reduce((s, a) => s + a.penalty, 0)}`}
         </span>
       </div>
+
+      {result.score >= PASS.scenario ? (
+        <p className="flex flex-wrap items-center gap-3 rounded border border-emerald-200 bg-emerald-50 px-4 py-3 font-medium text-emerald-800">
+          ✓ Étape validée
+          <a href="/" className="ml-auto rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+            Continuer le parcours →
+          </a>
+        </p>
+      ) : (
+        <p className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+          Il faut {PASS.scenario}/100 pour valider l'étape : lis le debrief, puis rejoue.
+        </p>
+      )}
 
       {result.missingLayers.length > 0 && (
         <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm">

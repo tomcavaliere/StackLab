@@ -47,7 +47,7 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 |---|---|
 | `npm run dev` | Serveur local sur http://localhost:4321 |
 | `npm run build` | Vérifie les sections des fiches et les quiz de techno (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
-| `npm test` | Tests Vitest (scoring, récompenses) |
+| `npm test` | Tests Vitest (scoring, récompenses, parcours, révisions) |
 | `sqlite3 data/stacklab.db` | Interroger la progression locale (sans `.env` Turso) |
 | `turso db shell stacklab` | Interroger la progression en ligne (CLI Turso, ou l'éditeur SQL du dashboard turso.tech) |
 
@@ -55,7 +55,7 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 
 ```
 src/
-  content.config.ts      schémas Zod des 6 collections + ref() (références vérifiées)
+  content.config.ts      schémas Zod des 7 collections + ref() (références vérifiées)
   content/
     techs/<id>.md        fiches technos
     scenarios/<id>.md    scénarios du jeu
@@ -63,12 +63,15 @@ src/
     roles/<id>.md        métiers (data engineer, frontend…) : leur pile par étape, avec le rôle de chaque techno
     quiz/<id>.md         thèmes du quiz (questions à 2 technos)
     tech-quiz/<id>.md    quiz d'une techno (QCM en texte), id = id de sa fiche
+    parcours/parcours.md le parcours guidé : unités dans l'ordre, chacune avec ses leçons (fiches), ses thèmes, ses scénarios
   lib/
     taxonomy.ts          vocabulaires contrôlés (kinds, couches, verdicts…) : slug -> libellé
     db.ts, schema.sql    client libSQL (Turso, ou fichier local) : ouverture paresseuse, schéma (IF NOT EXISTS) appliqué à chaque ouverture
     scoring.ts (+ .test) score d'une partie, fonction pure
     rewards.ts (+ .test) XP, niveaux, série, maîtrise, choix des questions, badges : fonctions pures
-    progress.ts          historique lu en base -> computeProgress, persistance des badges débloqués
+    path.ts (+ .test)    parcours : statut de chaque étape (faite, en cours, verrouillée), fonction pure
+    review.ts (+ .test)  révisions espacées : état de chaque question rejoué depuis l'historique, session du jour, fonctions pures
+    progress.ts          historique lu en base -> computeProgress, parcours et révisions (loadLearning), persistance des badges débloqués
     sources.ts           isOld() : source de plus de 3 ans
   components/game/
     Game.tsx             îlot du jeu : pioche (tiroir en bas sur téléphone), plateau React Flow à la largeur de l'écran, résultats, lecture des animations
@@ -76,18 +79,22 @@ src/
   components/roles/
     Roles.tsx            îlot de la page « Par métier » : bulles, pile d'un métier, comparaison de deux métiers (diagramme de Venn)
   components/quiz/
-    Quiz.tsx             îlot du quiz, pour les thèmes (2 technos) comme pour les technos (QCM) : session de 10 questions, clavier, feedback, bilan
+    Quiz.tsx             îlot du quiz, pour les thèmes (2 technos), les technos (QCM), les révisions (quiz mélangés) et le renforcement : session de 10 questions, clavier, feedback, bilan qui enchaîne sur l'étape suivante
   pages/
-    fiches/              liste filtrable groupée par type (défaut), `metiers` (bulles par métier), page fiche (enregistre une vue, lien vers son quiz avec la maîtrise)
+    index.astro          le parcours : révisions du jour, prochaine étape, unités et leurs étapes
+    revisions.astro      session de révision du jour (îlot Quiz en mode révision)
+    renforcement.astro   les questions jamais vues des étapes validées, quiz par quiz (liens vers les pages de quiz en `?renforcement`)
+    verrou.astro         page d'une étape verrouillée (les pages de quiz, scénario, entreprise y redirigent)
+    fiches/              bibliothèque : un onglet par type (`?type=`), vue d'un tag (`?tag=`), `metiers` (bulles par métier), page fiche (enregistre une vue côté serveur, ouvre son quiz si le parcours y est)
     jouer/               liste des scénarios + page de partie (îlot Game, debrief)
     entreprises/         liste + page entreprise (sources, ⚠ > 3 ans)
-    quiz/                liste des thèmes et des technos (barres de maîtrise) + page de session d'un thème (îlot Quiz)
+    quiz/                liste des thèmes et des technos (barres de maîtrise) + page de session d'un thème (îlot Quiz ; `?renforcement` : les questions jamais vues)
     quiz/techno/[id]     page de session du quiz d'une techno (îlot Quiz)
     progression.astro    niveau, série, badges, maîtrise par thème et par techno, confusions, activité (rendue à la demande)
     api/views.ts         POST { techId } : enregistre une vue · GET : vues par fiche
     api/attempts.ts      POST { scenarioId, score, cards: [{ techId, layer, verdict }] } : enregistre une partie · GET : meilleur score par scénario
-    api/quiz.ts          POST { themeId, answers: [{ questionId, chosenTech, correctTech }] } : enregistre une session · GET ?theme= : stats par question
-    api/progress.ts      GET : XP, niveau, série, maîtrise par thème et par techno, badges, confusions
+    api/quiz.ts          POST { sessions: [{ themeId, answers: [{ questionId, chosenTech, correctTech }] }] } : enregistre une ou plusieurs sessions (une révision = une par quiz) · GET ?theme= : stats par question
+    api/progress.ts      GET : XP, niveau, série, maîtrise par thème et par techno, badges, confusions, révisions dues, prochaine étape
   layouts/Base.astro
   middleware.ts          mot de passe (Basic Auth) devant toutes les requêtes, si STACKLAB_PASSWORD est défini
 scripts/check-content.mjs    ce que Zod ne voit pas : sections imposées des fiches, quiz de techno sans fiche (erreur), fiche sans quiz (avertissement)
@@ -98,6 +105,7 @@ data/stacklab.db             base locale (sans Turso), ignorée par git
 
 - **Le contenu est de la donnée** : un fichier Markdown + frontmatter par entité, validé au build. Ajouter une techno, c'est ajouter un fichier, sans toucher au code.
 - **SQLite ne stocke que la progression** (`attempts`, `attempt_cards`, `tech_views`, `quiz_sessions`, `quiz_answers`, `badges`), jamais de contenu. Les ids de tech, de scénario, de thème et de question y sont des ids de contenu, sans clé étrangère possible. Une session du quiz d'une techno est une session de quiz comme une autre, avec `theme_id = 'tech:<id de la fiche>'` et le texte des options dans `chosen_tech` / `correct_tech`.
+- **Parcours** (phase 12) : un seul chemin, décrit dans `parcours.md` ; tout est recalculé depuis l'historique (`path.ts`), sans table dédiée. Les fiches se lisent toutes ; les quiz, scénarios et entreprises sont verrouillés côté serveur tant que le parcours n'y est pas (redirection vers `/verrou`). La nav montre Parcours, Révisions, Renforcement, Fiches, Progression : `/quiz`, `/jouer`, `/entreprises` restent accessibles depuis le parcours.
 - **Tout est rendu à la demande** (`output: 'server'`, adapter `@astrojs/vercel`) : sur Vercel, des pages prérendues seraient servies sans passer par le middleware, donc sans mot de passe. Les pages dynamiques lisent leur entrée avec `getEntry(collection, Astro.params.id)` (404 si absente), pas de `getStaticPaths`. Hors `/progression`, la progression s'affiche par `fetch('/api/progress')` (widget de la nav, barres de maîtrise).
 - **Scoring** (phase 2) : fonction pure dans `src/lib/scoring.ts`, indépendante de l'UI, testée avec Vitest. Calculée côté client, le résultat est envoyé tel quel à `/api/attempts`.
 - **Récompenses** (phase 6) : fonctions pures dans `src/lib/rewards.ts`, testées avec Vitest, partagées par le serveur et l'îlot Quiz. Tout est recalculé depuis l'historique brut ; seuls les badges débloqués sont stockés (avec leur date, sans régression possible).
@@ -135,10 +143,11 @@ data/stacklab.db             base locale (sans Turso), ignorée par git
 
 3. Écrire le corps avec exactement ces 4 titres `##` : `Problème résolu`, `Quand l'utiliser`, `Quand l'éviter`, `Pour aller plus loin`. Les sections « Alternatives » et « S'intègre avec » sont générées depuis le frontmatter.
 4. **Si `layers` n'est pas vide**, ajouter un verdict pour la fiche dans chaque scénario dont les couches requises ou optionnelles croisent les siennes. Sans verdict, la carte sort « non évaluée » (grise, hors score) dans ce scénario.
-5. Écrire son quiz : `src/content/tech-quiz/<id>.md` (procédure « quiz d'une techno » ci-dessous). Sans quiz, la fiche fonctionne, mais le build l'avertit.
-6. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
+5. Écrire son quiz : `src/content/tech-quiz/<id>.md` (procédure « quiz d'une techno » ci-dessous).
+6. **La placer dans le parcours** : ajouter son id aux `lessons` d'une unité de `src/content/parcours/parcours.md`. Le build échoue si une fiche manque au parcours, y figure deux fois ou n'a pas de quiz.
+7. `npm run build` doit passer. Une référence vers une fiche qui n'existe pas encore fait échouer le build : créer d'abord la fiche cible, ou retirer le lien en attendant. (Le serveur de dev rejette aussi une fiche dont la cible n'existe pas encore, et ne la revalide pas quand la cible apparaît : la réenregistrer.)
 
-La fiche apparaît alors dans la liste des fiches, dans la liste des quiz si elle a le sien, et, si `layers` n'est pas vide, dans la pioche du jeu.
+La fiche apparaît alors dans son onglet de la bibliothèque, comme leçon du parcours, et, si `layers` n'est pas vide, dans la pioche du jeu.
 
 ## Procédure : ajouter ou modifier un métier
 
@@ -160,7 +169,8 @@ La fiche apparaît alors dans la liste des fiches, dans la liste des quiz si ell
    - `referenceStack` : une stack valide parmi d'autres, par couche (`{ backend-api: [django], … }`).
 3. Corps Markdown = le raisonnement du debrief.
 4. Le surdimensionnement s'exprime par des verdicts écrits (ex. Spark `surdimensionne` pour quelques milliers de lignes), pas par un calcul sur les contraintes.
-5. `npm run build` : le build vérifie que les couches requises figurent dans `referenceStack` et que chaque tech y a un verdict `ideal` ou `acceptable` dans sa couche.
+5. **Le placer dans le parcours** : l'ajouter aux `scenarios` de l'unité après laquelle toutes ses couches requises ont été vues (`parcours.md`).
+6. `npm run build` : le build vérifie que les couches requises figurent dans `referenceStack` et que chaque tech y a un verdict `ideal` ou `acceptable` dans sa couche.
 
 ### Règles de scoring (phase 2, `src/lib/scoring.ts`)
 
@@ -185,13 +195,14 @@ Score : idéal 3, acceptable 2, surdimensionné 1, inadapté 0 points. Base = 10
    ```
 3. **Ne jamais renommer ni réutiliser un `id` de question** : il identifie l'historique en base (maîtrise, questions ratées). Pour changer le sens d'une question, en créer une nouvelle.
 4. Viser au moins une dizaine de questions par thème : une session en pose 10.
-5. `npm run build` : il échoue si une tech n'existe pas, si un id est en double ou si `decoy` = `answer`.
+5. Nouveau thème : l'ajouter aux `themes` d'une unité de `parcours.md`, celle où toutes les technos qu'il cite ont été vues (dans l'unité ou avant).
+6. `npm run build` : il échoue si une tech n'existe pas, si un id est en double, si `decoy` = `answer`, si un thème manque au parcours ou cite une techno pas encore vue.
 
 ## Procédure : écrire ou compléter le quiz d'une techno
 
 Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l'utiliser ou l'éviter), pas sur le choix entre deux technos : c'est le rôle des thèmes.
 
-1. Créer `src/content/tech-quiz/<id>.md`, où `<id>` est l'id de la fiche (frontmatter seul, une clé `questions`, au moins 5 ; viser 10, une session en pose 10).
+1. Créer `src/content/tech-quiz/<id>.md`, où `<id>` est l'id de la fiche (frontmatter seul, une clé `questions`, au moins 5 ; les quiz actuels en ont 30, une session en pose 10, les autres arrivent par les révisions).
 2. Chaque question :
    ```yaml
    - id: classement              # kebab-case, unique dans le fichier ; pas un mot réservé YAML (null, true, yes, on…)
@@ -218,6 +229,27 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 - **Choix des questions** : ratées, puis jamais vues, puis en cours, puis maîtrisées (la plus anciennement vue d'abord dans chaque groupe), 10 au maximum, puis mélangées.
 - **Badges** : liste `BADGES`, chacun avec un prédicat sur des statistiques. Un badge atteint est enregistré dans `badges` avec sa date et ne se reperd plus. Badges des technos : Expert (1 techno maîtrisée), Explorateur (10 technos jouées), Boîte à outils (10 technos maîtrisées), Encyclopédie (toutes).
 
+### Règles du parcours (phase 12, `src/lib/path.ts`)
+
+- Étapes, dans l'ordre de `parcours.md` : pour chaque unité, ses leçons, puis ses thèmes, puis ses scénarios. L'étape en cours est la première non faite ; les suivantes sont verrouillées, sauf celles déjà faites (rejouables, l'historique compte rétroactivement).
+- **Leçon** faite : fiche lue **et** une session de son quiz avec au moins 5 réponses et ≥ 70 % de bonnes (7/10). Son quiz s'ouvre quand l'étape est en cours et la fiche lue. Lire une fiche en avance ne débloque rien.
+- **Thème** fait : une session ≥ 70 %. **Scénario** fait : une partie ≥ 60/100.
+- **Entreprise** : ouverte quand son scénario « devine la stack » est fait (sans scénario : toujours).
+- Seuils : `PASS` dans `path.ts`.
+
+### Règles des révisions (phase 12, `src/lib/review.ts`)
+
+- Répétition espacée façon Anki, notée automatiquement par le QCM. L'état de chaque question (`<quiz>|<question>`) est rejoué depuis `quiz_answers`, en jours locaux.
+- Première réponse : juste → revient dans 1 jour, faux → aujourd'hui. Ensuite, à échéance ou après : juste → l'intervalle grandit (0→1, 1→3, puis × ease : 8, 20, 50… jours) ; faux → retour à 0 (aujourd'hui) et ease −0,2 (départ 2,5, plancher 1,3). Avant échéance : juste ne change rien (pas de bachotage), faux remet à 0.
+- Session du jour (`/revisions`) : les questions **déjà vues** des étapes faites, arrivées à échéance (la plus en retard d'abord), 20 au plus. Une question jamais vue n'entre jamais en révision. En révision, une erreur repasse une fois en fin de session. Le compteur de la nav compte les questions dues.
+- Une révision est enregistrée en une session par quiz (le combo repart à 0 entre deux quiz). Une question est « solidement retenue » à partir de 21 jours d'intervalle. La maîtrise (2 bonnes d'affilée) et les badges ne changent pas.
+
+### Règles du renforcement (phase 12, `/renforcement`)
+
+- Le parcours ne pose que 10 questions par quiz (les quiz de techno en ont 30). Le renforcement propose, pour chaque leçon ou thème **validé**, ses questions jamais vues (`unseen` dans `review.ts`), 10 par session.
+- C'est facultatif, quiz par quiz : une techno qu'on ne renforce pas ne ramène en révision que ses questions déjà vues. Une fois répondue, une question entre dans les révisions comme les autres.
+- Une session de renforcement est une session de quiz normale (XP, maîtrise, badges). Sur une étape non validée, `?renforcement` redirige vers `/renforcement`.
+
 ## Procédure : ajouter ou mettre à jour une stack d'entreprise (workflow de recherche)
 
 À suivre quand l'utilisateur demande « ajoute / mets à jour la stack de X ».
@@ -240,7 +272,7 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 ## Critères de succès (à rejouer à chaque phase)
 
 1. **Contenu invalide → build en échec** avec chemin + champ. Ajouter une fiche cassée (enum invalide, id inexistant, section manquante), lancer `npm run build`, constater l'échec, retirer la fiche.
-2. **Nouvelle techno = 1 fichier** : suivre la procédure ci-dessus à la lettre ; la fiche apparaît dans la liste et dans la pioche sans toucher au code.
+2. **Nouvelle techno = 1 fichier + 1 ligne de parcours** : suivre la procédure ci-dessus à la lettre ; la fiche apparaît dans la bibliothèque, dans le parcours et dans la pioche sans toucher au code.
 3. **Tests du scoring** (`npm test`) : idéale > acceptable > surdimensionnée ; couche requise manquante pénalisée ; anti-pattern détecté.
 4. **Les 3 scénarios sont jouables** de bout en bout, animation comprise.
 5. **Page entreprise** : source, date et confiance de chaque techno ; sources de plus de 3 ans signalées visuellement.
@@ -254,6 +286,7 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
    sqlite3 -header -column data/stacklab.db "SELECT * FROM badges;"
    ```
 8. **Chaque fiche a son quiz** : `npm run build` n'affiche aucun avertissement « Fiches sans quiz ». Une session de quiz de techno apparaît dans la requête du critère 7 avec `theme_id = tech:<id>`, et sa maîtrise sur la fiche, sur `/quiz` et sur `/progression`.
+9. **Parcours** : `npm test` couvre les règles ; retirer une fiche de `parcours.md` (ou la mettre deux fois, ou placer un thème avant une techno qu'il cite) fait échouer le build. Sur une base neuve, seule la fiche SQL et son quiz sont ouverts ; `/quiz/techno/python` redirige vers `/verrou`. Après la leçon SQL, `/revisions` ne contient que des questions de cette session ; `/renforcement` affiche SQL « 10 / 30 questions vues » et ne sert que des questions jamais vues.
 
 ## Avancement
 
@@ -269,3 +302,4 @@ Le quiz d'une techno porte sur la techno elle-même (rôle, mécanismes, quand l
 - [x] Phase 9 : IA et machine learning : 25 fiches (LLM, RAG, embeddings, bases vectorielles, MLOps, bibliothèques ML, concepts) avec quiz, 2 thèmes de quiz (LLM & IA générative, Machine learning), 2 scénarios (assistant documentaire RAG, prédiction de résiliation), cartes de la couche `ml` dans l'animation de requête (tag `vectoriel` = recherche vectorielle avant l'appel au modèle)
 - [x] Phase 10 : liste des fiches groupée par type (défaut) + page « Par métier » (9 métiers, bulles, pile par étape, comparaison de deux métiers)
 - [x] Phase 11 : déploiement (Vercel + Turso + mot de passe) et affichage téléphone (nav, grilles, quiz, par métier, jeu au toucher avec pioche en tiroir)
+- [x] Phase 12 : parcours guidé (8 unités, 119 étapes : fiche → quiz → thème → scénario → entreprise), révisions espacées façon Anki (questions déjà vues seulement), renforcement des questions restantes, bibliothèque des fiches en onglets par type, nav à 5 entrées

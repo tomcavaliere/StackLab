@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
@@ -7,7 +7,7 @@ import { CONFIDENCES, KINDS, LAYERS, ROLE_FAMILIES, SCENARIO_TYPES, SOURCE_TYPES
 // reference() d'Astro 7 ne vérifie pas que l'id existe : il le transforme seulement en { id, collection }.
 // ref() ajoute ce contrôle, si bien qu'un id sans fichier correspondant fait échouer le build.
 // L'id d'une entrée est le nom de son fichier (kebab-case, sans extension).
-const ref = (collection: 'techs' | 'scenarios') =>
+const ref = (collection: 'techs' | 'scenarios' | 'quiz') =>
   z
     .string()
     .refine((id) => existsSync(`src/content/${collection}/${id}.md`), {
@@ -216,4 +216,66 @@ const techQuiz = defineCollection({
     }),
 });
 
-export const collections = { techs, roles, scenarios, companies, quiz, techQuiz };
+// Le parcours guidé : un seul fichier (src/content/parcours/parcours.md), pour que les contrôles voient tout le chemin.
+// Chaque unité enchaîne ses leçons (fiche + quiz de la fiche), ses thèmes, puis ses scénarios. Règles : CLAUDE.md, « Parcours ».
+const mdIds = (dir: string) =>
+  readdirSync(dir)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => f.slice(0, -3));
+// Technos citées par un thème (answer et decoy), lues dans le fichier brut : Zod ne voit pas les autres collections.
+const themeTechs = (id: string) =>
+  [...readFileSync(`src/content/quiz/${id}.md`, 'utf8').matchAll(/^\s+(?:answer|decoy):\s*(\S+)/gm)].map((m) => m[1]);
+
+const parcours = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/parcours' }),
+  schema: z
+    .strictObject({
+      units: z
+        .array(
+          z.strictObject({
+            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: "id d'unité en kebab-case ASCII minuscule" }),
+            title: z.string(),
+            intro: z.string(),
+            lessons: z.array(ref('techs')).min(1),
+            themes: z.array(ref('quiz')).default([]),
+            scenarios: z.array(ref('scenarios')).default([]),
+          }),
+        )
+        .min(1),
+    })
+    .superRefine((p, ctx) => {
+      const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path: ['units', ...path], message });
+      const units = new Set<string>();
+      const lessons = new Map<string, string>(); // tech -> unité
+      const themes = new Set<string>();
+      const scenarios = new Set<string>();
+      p.units.forEach((u, i) => {
+        if (units.has(u.id)) issue([i, 'id'], `unité "${u.id}" en double`);
+        units.add(u.id);
+        u.lessons.forEach(({ id }, j) => {
+          if (lessons.has(id)) issue([i, 'lessons', j], `"${id}" figure deux fois dans le parcours (déjà dans l'unité "${lessons.get(id)}")`);
+          if (!existsSync(`src/content/tech-quiz/${id}.md`)) issue([i, 'lessons', j], `"${id}" n'a pas de quiz (src/content/tech-quiz/${id}.md)`);
+          lessons.set(id, u.id);
+        });
+        u.themes.forEach(({ id }, j) => {
+          if (themes.has(id)) issue([i, 'themes', j], `thème "${id}" en double`);
+          themes.add(id);
+          const later = [...new Set(themeTechs(id))].filter((t) => !lessons.has(t));
+          if (later.length) issue([i, 'themes', j], `le thème "${id}" cite ${later.join(', ')}, pas encore vu(s) à cette unité du parcours`);
+        });
+        u.scenarios.forEach(({ id }, j) => {
+          if (scenarios.has(id)) issue([i, 'scenarios', j], `scénario "${id}" en double`);
+          scenarios.add(id);
+        });
+      });
+      const missing = (dir: string, seen: Set<string> | Map<string, string>) => mdIds(dir).filter((id) => !seen.has(id));
+      const absent = [
+        ['fiche(s)', missing('src/content/techs', lessons)],
+        ['thème(s)', missing('src/content/quiz', themes)],
+        ['scénario(s)', missing('src/content/scenarios', scenarios)],
+      ] as const;
+      for (const [what, ids] of absent) if (ids.length) issue([], `${what} absent(s) du parcours : ${ids.join(', ')}`);
+    }),
+});
+
+export const collections = { techs, roles, scenarios, companies, quiz, techQuiz, parcours };

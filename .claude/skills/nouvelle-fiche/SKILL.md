@@ -39,8 +39,9 @@ Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `ex
 - Le `why` justifie le verdict par les contraintes du scénario (équipe, budget, volume…), pas par des généralités.
 - Relancer jusqu'à « OK » partout.
 
-## 5. Quiz et validation
+## 5. Quiz, parcours et validation
 
-- Écrire le quiz de la fiche avec le skill `quiz-techno`. Sans quiz, le build l'avertit.
+- Écrire le quiz de la fiche avec le skill `quiz-techno` : sans quiz, la fiche ne peut pas être une leçon du parcours.
+- Placer la fiche dans `src/content/parcours/parcours.md` : ajouter son id aux `lessons` de l'unité qui lui correspond, à sa place dans l'ordre (difficulté croissante, prérequis d'abord). Le build échoue si une fiche manque au parcours ou y figure deux fois, et si un thème cite une techno placée dans une unité suivante.
 - `npm run build` doit passer. Une erreur `EPERM` lors du « Rearranging server assets » vient d'un fichier verrouillé dans `dist` : supprimer `dist` (`rm -rf dist`) et relancer.
 - Si le serveur de dev tourne, il ne revalide pas une fiche dont la cible vient d'apparaître : réenregistrer le fichier.

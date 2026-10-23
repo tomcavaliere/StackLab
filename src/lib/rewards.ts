@@ -138,7 +138,7 @@ export function levelOf(xp: number): Level {
 const pad = (n: number) => String(n).padStart(2, '0');
 /** Jour local AAAA-MM-JJ. */
 export const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const addDays = (day: string, n: number) => {
+export const addDays = (day: string, n: number) => {
   const [y, m, d] = day.split('-').map(Number);
   return localDay(new Date(y, m - 1, d + n));
 };

@@ -1,0 +1,60 @@
+---
+// Page affichée quand on ouvre une étape que le parcours n'a pas encore atteinte (les pages verrouillées redirigent ici).
+// ?etape=lesson|theme|scenario|company&id=<id>
+import { getEntry } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { describeStep, loadLearning } from '../lib/progress';
+import { stepOf, type StepKind } from '../lib/path';
+
+const kind = Astro.url.searchParams.get('etape') ?? '';
+const id = Astro.url.searchParams.get('id') ?? '';
+const { path } = await loadLearning();
+const next = await describeStep(path.current);
+
+let title = 'Étape verrouillée';
+let message = "Cette étape n'est pas encore ouverte.";
+let action: { label: string; href: string } | null = next;
+
+if (kind === 'company') {
+  const company = await getEntry('companies', id);
+  const scenario = company?.data.scenario && (await getEntry('scenarios', company.data.scenario.id));
+  title = `${company?.data.company ?? id} : stack verrouillée`;
+  message = scenario
+    ? `Elle se débloque en réussissant le scénario « ${scenario.data.title} » (60/100 ou plus) : devine d'abord la stack, puis découvre la vraie.`
+    : message;
+} else {
+  const step = stepOf(path, kind as StepKind, id);
+  const unit = path.units.find((u) => u.id === step?.unit);
+  const name =
+    kind === 'lesson'
+      ? (await getEntry('techs', id))?.data.name
+      : kind === 'theme'
+        ? (await getEntry('quiz', id))?.data.title
+        : (await getEntry('scenarios', id))?.data.title;
+  title = kind === 'lesson' ? `Quiz ${name ?? id} : verrouillé` : `${name ?? id} : verrouillé`;
+  if (step && step.status !== 'locked' && !step.viewed) {
+    message = 'Lis la fiche avant de faire son quiz.';
+    action = { label: `Lire la fiche ${name ?? id}`, href: `/fiches/${id}` };
+  } else if (unit) {
+    message = `Cette étape fait partie de l'unité « ${unit.title} ». Elle s'ouvrira quand le parcours y arrivera : chaque étape validée ouvre la suivante.`;
+  }
+}
+---
+
+<Base title="Verrouillé">
+  <div class="mx-auto mt-6 max-w-xl rounded border border-slate-200 bg-white px-5 py-6 text-center">
+    <p class="text-4xl">🔒</p>
+    <h1 class="mt-2 text-xl font-bold">{title}</h1>
+    <p class="mt-2 text-slate-600">{message}</p>
+    <div class="mt-5 flex flex-wrap justify-center gap-3">
+      {
+        action && (
+          <a href={action.href} class="rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+            {action.label} →
+          </a>
+        )
+      }
+      <a href="/" class="rounded bg-slate-200 px-4 py-2 font-medium hover:bg-slate-300">Parcours</a>
+    </div>
+  </div>
+</Base>

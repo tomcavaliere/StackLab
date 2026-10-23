@@ -4,9 +4,13 @@ import Base from '../../layouts/Base.astro';
 import Game, { type CompanyStack, type GameTech } from '../../components/game/Game';
 import { SCENARIO_TYPES, type Layer } from '../../lib/taxonomy';
 import type { ScenarioRules } from '../../lib/scoring';
+import { loadLearning } from '../../lib/progress';
+import { isOpen, stepOf } from '../../lib/path';
 
 const scenario = await getEntry('scenarios', Astro.params.id!);
 if (!scenario) return new Response('Introuvable', { status: 404 });
+const { path } = await loadLearning();
+if (!isOpen(stepOf(path, 'scenario', scenario.id))) return Astro.redirect(`/verrou?etape=scenario&id=${scenario.id}`);
 const s = scenario.data;
 const { Content } = await render(scenario);
 
@@ -54,7 +58,7 @@ const constraints = [
 ---
 
 <Base title={s.title} wide>
-  <a href="/jouer" class="text-sm text-slate-500 hover:text-blue-700">← Scénarios</a>
+  <a href="/" class="text-sm text-slate-500 hover:text-blue-700">← Parcours</a>
   <header class="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
     <h1 class="text-2xl font-bold">{s.title}</h1>
     <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{SCENARIO_TYPES[s.type]}</span>

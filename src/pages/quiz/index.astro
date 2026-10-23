@@ -3,8 +3,14 @@ import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { SESSION_SIZE } from '../../lib/rewards';
 import { KINDS } from '../../lib/taxonomy';
+import { loadLearning } from '../../lib/progress';
+import { isOpen, stepOf } from '../../lib/path';
 
-const themes = (await getCollection('quiz')).sort((a, b) => a.data.title.localeCompare(b.data.title, 'fr'));
+// Ordre du parcours ; un quiz verrouillé reste listé, grisé (sa page explique comment l'ouvrir).
+const { path } = await loadLearning();
+const order = path.units.flatMap((u) => u.steps.map((s) => s.id));
+const themes = (await getCollection('quiz')).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+const locked = (kind: 'lesson' | 'theme', id: string) => !isOpen(stepOf(path, kind, id));
 const techs = await getCollection('techs');
 const quizSize = new Map((await getCollection('techQuiz')).map((q) => [q.id, q.data.questions.length]));
 // Quiz de techno regroupés par kind, dans l'ordre de la taxonomie.
@@ -31,9 +37,9 @@ const groups = Object.entries(KINDS)
     {
       themes.map((t) => (
         <li data-theme={t.id}>
-          <a href={`/quiz/${t.id}`} class="flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400">
+          <a href={`/quiz/${t.id}`} class:list={['flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400', locked('theme', t.id) && 'opacity-50']}>
             <span class="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span class="text-lg font-semibold">{t.data.title}</span>
+              <span class="text-lg font-semibold">{locked('theme', t.id) && '🔒 '}{t.data.title}</span>
               <span class="shrink-0 text-sm text-slate-500">{t.data.questions.length} questions</span>
             </span>
             <span class="text-sm text-slate-600">{t.data.description}</span>
@@ -61,10 +67,10 @@ const groups = Object.entries(KINDS)
             <li data-tech={t.id}>
               <a
                 href={`/quiz/techno/${t.id}`}
-                class="flex flex-col gap-1.5 rounded border border-slate-200 bg-white px-3 py-2 hover:border-slate-400"
+                class:list={['flex flex-col gap-1.5 rounded border border-slate-200 bg-white px-3 py-2 hover:border-slate-400', locked('lesson', t.id) && 'opacity-50']}
               >
                 <span class="flex flex-wrap items-baseline justify-between gap-x-2">
-                  <span class="font-medium">{t.data.name}</span>
+                  <span class="font-medium">{locked('lesson', t.id) && '🔒 '}{t.data.name}</span>
                   <span data-mastery class="shrink-0 text-xs text-slate-500">
                     {quizSize.get(t.id)} questions
                   </span>

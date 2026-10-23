@@ -36,6 +36,8 @@ Toutes les commandes se lancent en bash depuis la racine, avec ce préfixe : `ex
 
 ## 3. Valider
 
+- Nouveau thème : l'ajouter aux `themes` d'une unité de `src/content/parcours/parcours.md`, celle où toutes les technos qu'il cite ont déjà été vues (dans cette unité ou avant). Le build le vérifie.
+
 - `npm run build` doit passer. Il échoue si une techno n'existe pas, si un id est en double ou si `decoy` = `answer`.
 - Pas de chiffre inventé dans les `why`.
 - Le thème apparaît automatiquement sur `/quiz`, sans toucher au code.

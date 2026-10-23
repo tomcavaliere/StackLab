@@ -10,21 +10,27 @@ import {
   type QuestionStat,
   type QuizAnswer,
 } from '../../lib/rewards';
+import { passes, PASS } from '../../lib/path';
 
 // Deux formats : thème (answer et decoys sont des ids de techno, un seul leurre) ou quiz d'une techno (QCM en texte).
+// En révision, les questions viennent de plusieurs quiz : chacune porte son quizId (et son techId si c'est un quiz de techno).
 export interface QuizQuestion {
   id: string;
   prompt: string;
   answer: string;
   decoys: string[];
   why: string;
+  quizId?: string;
+  techId?: string;
 }
 
 interface Props {
-  themeId: string; // id du thème, ou techQuizId(id de la fiche)
+  themeId?: string; // id du thème, ou techQuizId(id de la fiche) ; absent en révision (quizId de chaque question)
   questions: QuizQuestion[];
   techNames: Record<string, string>; // noms des technos citées ; une option absente de la table s'affiche telle quelle
   techId?: string; // quiz d'une techno : options en texte, feedback qui renvoie vers sa fiche
+  review?: boolean; // révision : questions dans l'ordre reçu, une erreur repasse une fois en fin de session
+  reinforce?: boolean; // renforcement : la page ne passe que les questions jamais vues d'une étape validée
 }
 
 /** Réponse de POST /api/quiz. */
@@ -34,10 +40,11 @@ interface SaveResult {
   level: Level;
   levelUp: boolean;
   newBadges: { id: string; icon: string; label: string; description: string }[];
+  next: { label: string; href: string } | null; // prochaine étape du parcours
 }
 
 type Phase = 'loading' | 'question' | 'feedback' | 'done';
-type Round = { q: QuizQuestion; options: string[] };
+type Round = { q: QuizQuestion; options: string[]; retry?: boolean };
 
 function shuffle<T>(items: T[]) {
   const out = [...items];
@@ -58,7 +65,7 @@ function status(s: QuestionStat | undefined) {
 const keyHint = (i: number, count: number) => (count === 2 ? ['← ou 1', '→ ou 2'][i] : String(i + 1));
 const button = 'rounded px-4 py-2 font-medium disabled:opacity-40';
 
-export default function Quiz({ themeId, questions, techNames, techId }: Props) {
+export default function Quiz({ themeId, questions, techNames, techId, review = false, reinforce = false }: Props) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [stats, setStats] = useState<Record<string, QuestionStat>>({});
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -75,14 +82,18 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
   const last = answers[index];
 
   // Nouvelle session : questions ratées et jamais vues d'abord (pickQuestions), ordre des questions et des options tiré au hasard.
+  // En révision, la page a déjà choisi et ordonné les questions.
   async function start() {
     setPhase('loading');
     setError('');
     try {
-      const res = await fetch(`/api/quiz?theme=${encodeURIComponent(themeId)}`);
-      if (!res.ok) throw new Error(await res.text());
-      const s: Record<string, QuestionStat> = await res.json();
-      const picked = shuffle(pickQuestions(shuffle(questions), s, SESSION_SIZE));
+      let s: Record<string, QuestionStat> = {};
+      if (!review) {
+        const res = await fetch(`/api/quiz?theme=${encodeURIComponent(themeId!)}`);
+        if (!res.ok) throw new Error(await res.text());
+        s = await res.json();
+      }
+      const picked = review ? questions : shuffle(pickQuestions(shuffle(questions), s, SESSION_SIZE));
       setStats(s);
       setRounds(picked.map((q) => ({ q, options: shuffle([q.answer, ...q.decoys]) })));
       setIndex(0);
@@ -105,9 +116,21 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
     const correct = chosen === round.q.answer;
     const nextCombo = correct ? combo + 1 : 0;
     setAnswers([...answers, { questionId: round.q.id, chosenTech: chosen, correctTech: round.q.answer }]);
+    // Révision : une erreur repasse une fois en fin de session, comme « À revoir » dans Anki.
+    if (review && !correct && !round.retry) setRounds([...rounds, { q: round.q, options: shuffle(round.options), retry: true }]);
     setCombo(nextCombo);
     if (correct) setXp(xp + answerXp(nextCombo));
     setPhase('feedback');
+  }
+
+  // Une session par quiz : en révision, les réponses sont regroupées par quizId, dans l'ordre où elles ont été données.
+  function bySession() {
+    const groups = new Map<string, QuizAnswer[]>();
+    answers.forEach((a, i) => {
+      const id = rounds[i].q.quizId ?? themeId!;
+      groups.set(id, [...(groups.get(id) ?? []), a]);
+    });
+    return [...groups].map(([id, list]) => ({ themeId: id, answers: list }));
   }
 
   async function next() {
@@ -121,7 +144,7 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
       const res = await fetch('/api/quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ themeId, answers }),
+        body: JSON.stringify({ sessions: bySession() }),
       });
       if (!res.ok) throw new Error(await res.text());
       setSaved(await res.json());
@@ -155,11 +178,15 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
 
   if (error && phase !== 'done') return <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm">{error}</p>;
   if (phase === 'loading') return <p className="text-slate-500">Chargement…</p>;
-  if (phase === 'done') return <Summary {...{ rounds, answers, saved, error, name, start }} />;
+  if (phase === 'done') {
+    const remaining = questions.length - rounds.length; // renforcement : questions encore jamais vues
+    return <Summary {...{ rounds, answers, saved, error, name, start, review, reinforce, remaining }} />;
+  }
 
-  const fiches = techId ? [techId] : [round.q.answer, ...round.q.decoys];
+  const qTech = round.q.techId ?? techId; // quiz de techno : options en texte
+  const fiches = qTech ? [qTech] : [round.q.answer, ...round.q.decoys];
 
-  const st = status(stats[round.q.id]);
+  const st = review ? { label: round.retry ? 'À revoir' : 'Révision', style: 'bg-violet-100 text-violet-800' } : status(stats[round.q.id]);
   const optionStyle = (option: string) => {
     if (phase === 'question') return 'border-slate-300 bg-white hover:border-blue-500 hover:bg-blue-50 cursor-pointer';
     if (option === round.q.answer) return 'border-emerald-500 bg-emerald-50';
@@ -176,7 +203,7 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
         <span className="flex gap-1">
           {rounds.map((r, i) => (
             <span
-              key={r.q.id}
+              key={i}
               className={`h-2 w-5 rounded-full ${
                 i >= answers.length ? (i === index ? 'bg-blue-400' : 'bg-slate-200') : isCorrect(answers[i]) ? 'bg-emerald-500' : 'bg-red-500'
               }`}
@@ -190,12 +217,13 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
       <div className="mt-4 rounded border border-slate-200 bg-white px-4 py-4 md:px-6 md:py-5">
         <span className={`rounded px-1.5 py-0.5 text-xs ${st.style}`}>{st.label}</span>
         <p className="mt-3 text-xl leading-snug font-semibold md:text-2xl">{round.q.prompt}</p>
-        {!techId && <p className="mt-1 text-sm text-slate-500">Quelle techno choisir ?</p>}
+        {review && qTech && <p className="mt-1 text-sm text-slate-500">Quiz {name(qTech)}</p>}
+        {!qTech && <p className="mt-1 text-sm text-slate-500">Quelle techno choisir ?</p>}
       </div>
 
-      <div className={techId ? 'mt-4 space-y-3' : 'mt-4 grid grid-cols-2 gap-4'}>
+      <div className={qTech ? 'mt-4 space-y-3' : 'mt-4 grid grid-cols-2 gap-4'}>
         {round.options.map((option, i) =>
-          techId ? (
+          qTech ? (
             <button
               key={option}
               type="button"
@@ -242,7 +270,7 @@ export default function Quiz({ themeId, questions, techNames, techId }: Props) {
                 {combo >= 3 && <span className="text-orange-600">🔥 {combo} d'affilée</span>}
               </>
             ) : (
-              <span className="text-red-700">{techId ? '✗ Raté : la bonne réponse est en vert' : `✗ C'était ${name(round.q.answer)}`}</span>
+              <span className="text-red-700">{qTech ? '✗ Raté : la bonne réponse est en vert' : `✗ C'était ${name(round.q.answer)}`}</span>
             )}
           </p>
           <p className="mt-2 text-slate-800">{round.q.why}</p>
@@ -269,6 +297,9 @@ function Summary({
   error,
   name,
   start,
+  review,
+  reinforce,
+  remaining,
 }: {
   rounds: Round[];
   answers: QuizAnswer[];
@@ -276,11 +307,15 @@ function Summary({
   error: string;
   name: (id: string) => string;
   start: () => void;
+  review: boolean;
+  reinforce: boolean;
+  remaining: number;
 }) {
   const good = answers.filter(isCorrect).length;
   const perfect = good === answers.length && answers.length >= XP.perfectMin;
   const tone = good / answers.length >= 0.8 ? 'text-emerald-600' : good / answers.length >= 0.5 ? 'text-amber-600' : 'text-red-600';
-  const mistakes = rounds.map((r, i) => ({ r, a: answers[i] })).filter(({ a }) => !isCorrect(a));
+  const mistakes = rounds.map((r, i) => ({ r, a: answers[i] })).filter(({ a, r }) => !isCorrect(a) && !r.retry);
+  const passed = passes(answers);
   const level = saved?.level;
   const width = saved && saved.level.next ? (100 * (saved.xp - saved.level.floor)) / (saved.level.next - saved.level.floor) : 100;
 
@@ -296,6 +331,22 @@ function Summary({
           🎯 Sans faute : +{XP.perfect} XP de bonus
         </p>
       )}
+      {reinforce && (
+        <p className="rounded border border-violet-200 bg-violet-50 px-4 py-3 text-violet-900">
+          Ces {answers.length} questions entrent dans tes révisions.{' '}
+          {remaining > 0 ? `Il en reste ${remaining} jamais vue${remaining > 1 ? 's' : ''}.` : 'Tout le quiz est vu.'}
+        </p>
+      )}
+      {!review &&
+        !reinforce &&
+        (passed ? (
+          <p className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 font-medium text-emerald-800">✓ Étape validée</p>
+        ) : (
+          <p className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+            Il faut au moins {Math.ceil(PASS.ratio * answers.length)} bonnes réponses sur {answers.length} pour valider l'étape. Les
+            questions ratées reviendront en premier.
+          </p>
+        ))}
       {error && <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm">{error}</p>}
       {!saved && !error && <p className="text-sm text-slate-500">Enregistrement…</p>}
 
@@ -333,7 +384,7 @@ function Summary({
 
       {mistakes.length > 0 && (
         <div className="rounded bg-white px-5 py-4">
-          <h2 className="font-semibold">À revoir : elles seront reposées en priorité à la prochaine session</h2>
+          <h2 className="font-semibold">À revoir : elles reviendront dans les révisions</h2>
           <ul className="mt-2 space-y-3 text-sm">
             {mistakes.map(({ r, a }) => (
               <li key={r.q.id}>
@@ -348,14 +399,32 @@ function Summary({
       )}
 
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={start} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
-          Rejouer
-        </button>
-        <a href="/quiz" className={`${button} bg-slate-200 hover:bg-slate-300`}>
-          Autres quiz
-        </a>
-        <a href="/progression" className={`${button} bg-slate-200 hover:bg-slate-300`}>
-          Ma progression
+        {reinforce && remaining > 0 && (
+          <button type="button" onClick={() => location.reload()} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
+            Continuer le renforcement ({remaining} restante{remaining > 1 ? 's' : ''})
+          </button>
+        )}
+        {reinforce && (
+          <a href="/renforcement" className={`${button} ${remaining > 0 ? 'bg-slate-200 hover:bg-slate-300' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+            Renforcement
+          </a>
+        )}
+        {!reinforce && (passed || review) && saved?.next && (
+          <a href={saved.next.href} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
+            Suite : {saved.next.label} →
+          </a>
+        )}
+        {!review && !reinforce && (
+          <button
+            type="button"
+            onClick={start}
+            className={`${button} ${passed ? 'bg-slate-200 hover:bg-slate-300' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+          >
+            Rejouer
+          </button>
+        )}
+        <a href="/" className={`${button} bg-slate-200 hover:bg-slate-300`}>
+          Parcours
         </a>
       </div>
     </div>

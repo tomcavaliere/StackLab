@@ -3,26 +3,48 @@ import { getEntry } from 'astro:content';
 import Base from '../../../layouts/Base.astro';
 import Quiz from '../../../components/quiz/Quiz';
 import { techQuizId } from '../../../lib/rewards';
+import { loadLearning } from '../../../lib/progress';
+import { isOpen, stepOf } from '../../../lib/path';
+import { unseen } from '../../../lib/review';
 
 const quiz = await getEntry('techQuiz', Astro.params.id!);
 if (!quiz) return new Response('Introuvable', { status: 404 });
 // Vérifié au build par scripts/check-content.mjs ; en dev, une erreur explicite plutôt qu'une page cassée.
 const tech = await getEntry('techs', quiz.id);
 if (!tech) throw new Error(`src/content/tech-quiz/${quiz.id}.md : aucune fiche src/content/techs/${quiz.id}.md`);
+const { path, states } = await loadLearning();
+// Renforcement (?renforcement) : les questions jamais vues d'une leçon déjà validée.
+const reinforce = Astro.url.searchParams.has('renforcement');
+const step = stepOf(path, 'lesson', tech.id);
+if (reinforce && step?.status !== 'done') return Astro.redirect('/renforcement');
+if (!isOpen(step)) return Astro.redirect(`/verrou?etape=lesson&id=${tech.id}`);
+const left = new Set(unseen(states, { id: techQuizId(tech.id), questionIds: quiz.data.questions.map((q) => q.id) }));
+const questions = reinforce ? quiz.data.questions.filter((q) => left.has(q.id)) : quiz.data.questions;
 ---
 
 <Base title={`Quiz · ${tech.data.name}`}>
-  <a href="/quiz" class="text-sm text-slate-500 hover:text-blue-700">← Quiz</a>
-  <h1 class="mt-2 text-2xl font-bold">Quiz {tech.data.name}</h1>
+  <a href={reinforce ? '/renforcement' : '/'} class="text-sm text-slate-500 hover:text-blue-700">
+    ← {reinforce ? 'Renforcement' : 'Parcours'}
+  </a>
+  <h1 class="mt-2 text-2xl font-bold">{reinforce ? 'Renforcement' : 'Quiz'} {tech.data.name}</h1>
   <p class="mt-1 mb-6 max-w-3xl text-slate-600">
-    {tech.data.summary}
+    {reinforce ? `${questions.length} questions jamais vues sur ${quiz.data.questions.length}.` : tech.data.summary}
     <a href={`/fiches/${tech.id}`} target="_blank" class="text-blue-700 underline">Relire la fiche ↗</a>
   </p>
-  <Quiz
-    client:only="react"
-    themeId={techQuizId(tech.id)}
-    questions={quiz.data.questions}
-    techNames={{ [tech.id]: tech.data.name }}
-    techId={tech.id}
-  />
+  {
+    questions.length > 0 ? (
+      <Quiz
+        client:only="react"
+        themeId={techQuizId(tech.id)}
+        questions={questions}
+        techNames={{ [tech.id]: tech.data.name }}
+        techId={tech.id}
+        reinforce={reinforce}
+      />
+    ) : (
+      <p class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+        ✓ Toutes les questions de ce quiz sont déjà vues : elles reviennent dans les révisions.
+      </p>
+    )
+  }
 </Base>

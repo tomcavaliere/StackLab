@@ -3,9 +3,16 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { getProgress, loadHistory } from '../lib/progress';
 import { isCorrect, sessionXp, techOfQuiz } from '../lib/rewards';
+import { loadLearning } from '../lib/progress';
+import { REVIEW } from '../lib/review';
 
 const progress = await getProgress();
 const history = await loadHistory();
+const { path, reviews } = await loadLearning(history);
+const allSteps = path.units.flatMap((u) => u.steps);
+const stepsDone = allSteps.filter((s) => s.status === 'done').length;
+const unitsDone = path.units.filter((u) => u.status === 'done').length;
+const currentUnit = path.units.find((u) => u.status === 'current');
 const [themes, scenarios, techs, techQuizzes] = await Promise.all([
   getCollection('quiz'),
   getCollection('scenarios'),
@@ -81,6 +88,26 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
         )
       }
     </section>
+  </div>
+
+  <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+    <a href="/" class={`${card} hover:border-slate-400`}>
+      <h2 class="text-lg font-semibold">Parcours</h2>
+      <p class="mt-1 text-sm text-slate-600">
+        {stepsDone} / {allSteps.length} étapes · {unitsDone} / {path.units.length} unités terminées
+        {currentUnit && ` · en cours : ${currentUnit.title}`}
+      </p>
+      <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+        <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * stepsDone) / allSteps.length}%`}></div>
+      </div>
+    </a>
+    <a href="/revisions" class={`${card} hover:border-slate-400`}>
+      <h2 class="text-lg font-semibold">Révisions</h2>
+      <p class="mt-1 text-sm text-slate-600">
+        {reviews.due} à revoir aujourd'hui · {reviews.tracked} questions en révision, dont {reviews.mature} solidement retenues
+        (intervalle d'au moins {REVIEW.mature} jours){reviews.fresh > 0 && ` · ${reviews.fresh} à découvrir en renforcement`}
+      </p>
+    </a>
   </div>
 
   <section class={`${card} mt-4`}>

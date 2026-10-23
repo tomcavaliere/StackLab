@@ -3,9 +3,13 @@ import { getCollection, render, getEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import { CONFIDENCES, LAYERS, SOURCE_TYPES, type Layer } from '../../lib/taxonomy';
 import { isOld } from '../../lib/sources';
+import { loadLearning } from '../../lib/progress';
+import { companyOpen } from '../../lib/path';
 
 const company = await getEntry('companies', Astro.params.id!);
 if (!company) return new Response('Introuvable', { status: 404 });
+const { path } = await loadLearning();
+if (!companyOpen(path, company.data.scenario?.id)) return Astro.redirect(`/verrou?etape=company&id=${company.id}`);
 const c = company.data;
 const { Content } = await render(company);
 const techs = new Map((await getCollection('techs')).map((t) => [t.id, t]));

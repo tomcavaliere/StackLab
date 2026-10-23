@@ -3,10 +3,19 @@ import { getCollection, render, type CollectionEntry, getEntry } from 'astro:con
 import Base from '../../layouts/Base.astro';
 import LayerBadges from '../../components/LayerBadges.astro';
 import { CONFIDENCES, DIFFICULTIES, KINDS, LAYERS, type Layer } from '../../lib/taxonomy';
+import { getDb } from '../../lib/db';
+import { loadLearning } from '../../lib/progress';
+import { stepOf } from '../../lib/path';
 
 const tech = await getEntry('techs', Astro.params.id!);
 if (!tech) return new Response('Introuvable', { status: 404 });
 const { Content } = await render(tech);
+// La vue est enregistrée côté serveur, avant le calcul du parcours : le quiz s'ouvre dès l'affichage de la fiche.
+await (await getDb()).execute({ sql: 'INSERT INTO tech_views (tech_id) VALUES (?)', args: [tech.id] });
+const { path } = await loadLearning();
+const step = stepOf(path, 'lesson', tech.id);
+const quizOpen = step && step.status !== 'locked';
+const unit = path.units.find((u) => u.id === step?.unit);
 const all = await getCollection('techs');
 const byId = new Map(all.map((t) => [t.id, t]));
 const companies = await getCollection('companies');
@@ -48,7 +57,7 @@ const link = 'text-blue-700 underline';
 
 <Base title={d.name}>
   <article data-tech-id={tech.id}>
-    <a href="/fiches" class="text-sm text-slate-500 hover:text-blue-700">← Fiches</a>
+    <a href={`/fiches?type=${d.kind}`} class="text-sm text-slate-500 hover:text-blue-700">← Fiches · {KINDS[d.kind]}</a>
     <header class="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-2">
       <h1 class="text-3xl font-bold">{d.name}</h1>
       <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{KINDS[d.kind]}</span>
@@ -57,7 +66,7 @@ const link = 'text-blue-700 underline';
         {DIFFICULTIES[d.difficulty]}
       </span>
       {
-        quiz && (
+        quiz && quizOpen && (
           <a
             href={`/quiz/techno/${tech.id}`}
             class="ml-auto self-center rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
@@ -65,6 +74,13 @@ const link = 'text-blue-700 underline';
             🎯 Quiz {d.name}
             <span data-quiz-mastery class="ml-1 text-xs font-normal opacity-80">{quiz.data.questions.length} questions</span>
           </a>
+        )
+      }
+      {
+        quiz && !quizOpen && unit && (
+          <span class="ml-auto self-center rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-500">
+            🔒 Quiz ouvert quand le parcours arrive ici (unité « {unit.title} »)
+          </span>
         )
       }
     </header>
@@ -170,12 +186,22 @@ const link = 'text-blue-700 underline';
           ),
       )
     }
+
+    {
+      step?.status === 'current' && (
+        <div class="mt-8 flex max-w-3xl flex-wrap items-center gap-3 rounded border-2 border-blue-300 bg-blue-50 px-4 py-4">
+          <span class="font-medium text-blue-900">Fiche lue ? Vérifie que c'est acquis : 7 bonnes réponses sur 10 valident l'étape.</span>
+          <a href={`/quiz/techno/${tech.id}`} class="ml-auto rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+            Passer au quiz →
+          </a>
+        </div>
+      )
+    }
   </article>
 </Base>
 
 <script>
   const techId = document.querySelector<HTMLElement>('[data-tech-id]')!.dataset.techId;
-  fetch('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ techId }) });
 
   const mastery = document.querySelector('[data-quiz-mastery]');
   if (mastery) {

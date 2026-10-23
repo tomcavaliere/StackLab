@@ -1,25 +1,33 @@
 ---
+// Onglets de la bibliothèque : un par type de fiche (ordre de KINDS), puis « Par métier ». Défilent sur téléphone.
+import { getCollection } from 'astro:content';
+import { KINDS } from '../lib/taxonomy';
+
 interface Props {
-  current: 'type' | 'metier';
+  current: string; // un kind, 'metier', ou '' (vue d'un tag)
 }
 const { current } = Astro.props;
+const techs = await getCollection('techs');
 const tabs = [
-  ['type', '/fiches', 'Par type'],
-  ['metier', '/fiches/metiers', 'Par métier'],
+  ...Object.entries(KINDS)
+    .map(([kind, label]) => ({ key: kind, href: `/fiches?type=${kind}`, label, count: techs.filter((t) => t.data.kind === kind).length }))
+    .filter((t) => t.count > 0),
+  { key: 'metier', href: '/fiches/metiers', label: 'Par métier', count: 0 },
 ];
 ---
 
-<div class="flex gap-1 border-b border-slate-200">
+<div class="-mx-4 flex gap-1 overflow-x-auto border-b border-slate-200 px-4 whitespace-nowrap md:mx-0 md:flex-wrap md:px-0">
   {
-    tabs.map(([key, href, label]) => (
+    tabs.map((t) => (
       <a
-        href={href}
+        href={t.href}
         class:list={[
-          '-mb-px border-b-2 px-4 py-2 text-sm',
-          key === current ? 'border-blue-600 font-medium text-blue-700' : 'border-transparent text-slate-600 hover:text-blue-700',
+          '-mb-px shrink-0 border-b-2 px-3 py-2 text-sm',
+          t.key === current ? 'border-blue-600 font-medium text-blue-700' : 'border-transparent text-slate-600 hover:text-blue-700',
         ]}
       >
-        {label}
+        {t.label}
+        {t.count > 0 && <span class="ml-1 text-xs text-slate-400">{t.count}</span>}
       </a>
     ))
   }

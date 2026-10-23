@@ -1,36 +1,140 @@
 ---
+// Accueil = le parcours guidé : révisions du jour, prochaine étape, puis les unités dans l'ordre.
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { describeStep, loadLearning } from '../lib/progress';
+import { companyOpen, isOpen, type Step } from '../lib/path';
 
-const [techs, scenarios, companies, themes] = await Promise.all([
+const { path, reviews } = await loadLearning();
+const next = await describeStep(path.current);
+const [techs, themes, scenarios, companies] = await Promise.all([
   getCollection('techs'),
+  getCollection('quiz'),
   getCollection('scenarios'),
   getCollection('companies'),
-  getCollection('quiz'),
 ]);
-const questions = themes.reduce((n, t) => n + t.data.questions.length, 0);
-const modules = [
-  { href: '/fiches', title: 'Fiches', count: `${techs.length} fiches techno`, text: 'Le rôle de chaque techno, quand la choisir et quand l\'éviter.' },
-  { href: '/quiz', title: 'Quiz', count: `${themes.length} thèmes · ${questions} questions`, text: 'Des questions courtes, 2 technos, une seule bonne réponse. XP, séries et badges.' },
-  { href: '/jouer', title: 'Jouer', count: `${scenarios.length} scénarios`, text: 'Composer une stack pour un besoin client, puis lire le debrief.' },
-  { href: '/entreprises', title: 'Entreprises', count: `${companies.length} stacks d'entreprise`, text: 'Les stacks réelles, sourcées, et le mode « devine la stack ».' },
-];
+const techName = new Map(techs.map((t) => [t.id, t.data.name]));
+const themeTitle = new Map(themes.map((t) => [t.id, t.data.title]));
+const scenarioTitle = new Map(scenarios.map((s) => [s.id, s.data.title]));
+const companyOf = (scenarioId: string) => companies.find((c) => c.data.scenario?.id === scenarioId);
+
+const steps = path.units.flatMap((u) => u.steps);
+const done = steps.filter((s) => s.status === 'done').length;
+const isCurrent = (s: Step) => path.current?.kind === s.kind && path.current.id === s.id;
+const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+const unlocked = {
+  quiz: steps.filter((s) => s.kind !== 'scenario' && isOpen(s)).length,
+  scenarios: steps.filter((s) => s.kind === 'scenario' && isOpen(s)).length,
+  companies: companies.filter((c) => companyOpen(path, c.data.scenario?.id)).length,
+};
+const icon = { done: '✓', current: '▶', locked: '🔒' };
+const iconStyle = {
+  done: 'bg-emerald-500 text-white',
+  current: 'bg-blue-600 text-white',
+  locked: 'bg-slate-200 text-slate-400 text-xs',
+};
+const link = 'text-blue-700 underline';
 ---
 
-<Base title="Accueil">
-  <h1 class="text-2xl font-bold">StackLab</h1>
-  <p class="mt-1 text-slate-600">Comprendre le rôle de chaque techno dans une stack et s'entraîner à en composer une.</p>
-  <ul class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+<Base title="Parcours">
+  <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+    <h1 class="text-2xl font-bold">Parcours</h1>
+    <span class="text-sm text-slate-500">{done} / {steps.length} étapes</span>
+  </div>
+  <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+    <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * done) / steps.length}%`}></div>
+  </div>
+
+  <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
     {
-      modules.map((m) => (
+      reviews.due > 0 ? (
+        <a href="/revisions" class="flex flex-col rounded border-2 border-violet-300 bg-violet-50 px-5 py-4 hover:border-violet-500">
+          <span class="text-lg font-semibold text-violet-900">🔁 Révisions du jour : {reviews.due} question{reviews.due > 1 ? 's' : ''}</span>
+          <span class="text-sm text-violet-800">À faire en premier : c'est le moment où tu risques de les oublier.</span>
+        </a>
+      ) : (
+        <div class="flex flex-col rounded border border-slate-200 bg-white px-5 py-4">
+          <span class="font-semibold">🔁 Aucune révision aujourd'hui</span>
+          <span class="text-sm text-slate-500">{reviews.next ? `Prochaine révision : ${day(reviews.next)}` : 'Les questions réussies reviendront ici, de plus en plus espacées.'}</span>
+        </div>
+      )
+    }
+    {
+      next ? (
+        <a href={next.href} class="flex flex-col rounded bg-blue-600 px-5 py-4 text-white hover:bg-blue-700">
+          <span class="text-sm opacity-80">Continuer</span>
+          <span class="text-lg font-semibold">{next.label} →</span>
+        </a>
+      ) : (
+        <div class="rounded border border-emerald-200 bg-emerald-50 px-5 py-4 font-semibold text-emerald-800">🎉 Parcours terminé : place aux révisions.</div>
+      )
+    }
+  </div>
+
+  <ol class="mt-8 space-y-3">
+    {
+      path.units.map((u, i) => (
         <li>
-          <a href={m.href} class="block h-full rounded border border-slate-200 bg-white p-5 hover:border-slate-400">
-            <span class="text-lg font-semibold">{m.title}</span>
-            <span class="block text-sm text-slate-500">{m.count}</span>
-            <span class="mt-2 block text-slate-700">{m.text}</span>
-          </a>
+          <details open={u.status === 'current'} class:list={['group rounded border bg-white', u.status === 'current' ? 'border-blue-300' : 'border-slate-200']}>
+            <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+              <span class:list={['flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-semibold', iconStyle[u.status]]}>
+                {u.status === 'done' ? '✓' : i + 1}
+              </span>
+              <span class:list={['font-semibold', u.status === 'locked' && 'text-slate-400']}>{u.title}</span>
+              <span class="ml-auto text-sm text-slate-500">
+                {u.done} / {u.steps.length}
+              </span>
+              <span class="basis-full pl-11 text-sm text-slate-500">{u.intro}</span>
+            </summary>
+            <ul class="border-t border-slate-100 px-4 py-2">
+              {u.steps.map((s) => {
+                const company = s.kind === 'scenario' ? companyOf(s.id) : undefined;
+                return (
+                  <li class:list={['flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5', isCurrent(s) && 'font-medium']}>
+                    <span class:list={['flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm', iconStyle[s.status]]}>{icon[s.status]}</span>
+                    {s.kind === 'lesson' && (
+                      <>
+                        <span class:list={[s.status === 'locked' && 'text-slate-400']}>{techName.get(s.id)}</span>
+                        <span class="ml-auto flex gap-3 text-sm">
+                          <a href={`/fiches/${s.id}`} class:list={[s.status === 'locked' ? 'text-slate-400 hover:text-blue-700' : link]}>
+                            {s.viewed ? '✓ fiche' : 'fiche'}
+                          </a>
+                          {isOpen(s) ? <a href={`/quiz/techno/${s.id}`} class={link}>quiz</a> : <span class="text-slate-400">quiz</span>}
+                        </span>
+                      </>
+                    )}
+                    {s.kind === 'theme' && (
+                      <>
+                        <span class:list={[s.status === 'locked' && 'text-slate-400']}>Quiz du thème « {themeTitle.get(s.id)} »</span>
+                        {isOpen(s) && <a href={`/quiz/${s.id}`} class={`ml-auto text-sm ${link}`}>jouer</a>}
+                      </>
+                    )}
+                    {s.kind === 'scenario' && (
+                      <>
+                        <span class:list={[s.status === 'locked' && 'text-slate-400']}>Scénario : {scenarioTitle.get(s.id)}</span>
+                        <span class="ml-auto flex gap-3 text-sm">
+                          {isOpen(s) && <a href={`/jouer/${s.id}`} class={link}>jouer</a>}
+                          {company && companyOpen(path, s.id) && (
+                            <a href={`/entreprises/${company.id}`} class="text-violet-700 underline">stack de {company.data.company}</a>
+                          )}
+                        </span>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
         </li>
       ))
     }
-  </ul>
+  </ol>
+
+  <p class="mt-8 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
+    <span>Débloqués :</span>
+    <a href="/quiz" class={link}>{unlocked.quiz} quiz</a>
+    <a href="/jouer" class={link}>{unlocked.scenarios} scénario{unlocked.scenarios > 1 ? 's' : ''}</a>
+    <a href="/entreprises" class={link}>{unlocked.companies} entreprise{unlocked.companies > 1 ? 's' : ''}</a>
+  </p>
 </Base>

@@ -1,7 +1,9 @@
 // Progression lue en base (côté serveur) : historique brut -> computeProgress, puis persistance des badges débloqués.
-import { getCollection } from 'astro:content';
+import { getCollection, getEntry } from 'astro:content';
 import { getDb } from './db';
-import { BADGES, computeProgress, type History, type Progress, type QuizSession } from './rewards';
+import { computePath, doneQuizzes, type Path, type Step, type Unit } from './path';
+import { dueReviews, reviewStates, type ReviewState, type Reviews } from './review';
+import { BADGES, computeProgress, techQuizId, type History, type Progress, type QuizSession } from './rewards';
 
 /** Historique complet, dans l'ordre chronologique (les ids croissent avec le temps). */
 export async function loadHistory(): Promise<History> {
@@ -39,9 +41,61 @@ export async function loadHistory(): Promise<History> {
   };
 }
 
+/** Les unités du parcours, avec des ids en clair. */
+export async function loadUnits(): Promise<Unit[]> {
+  const [parcours] = await getCollection('parcours');
+  return parcours.data.units.map((u) => ({
+    ...u,
+    lessons: u.lessons.map((l) => l.id),
+    themes: u.themes.map((t) => t.id),
+    scenarios: u.scenarios.map((s) => s.id),
+  }));
+}
+
+/** Tous les quiz (thèmes et technos) avec leurs questions actuelles, par id de session (« tech:<id> » pour une techno). */
+export async function loadQuizzes() {
+  const [themes, techQuizzes] = await Promise.all([getCollection('quiz'), getCollection('techQuiz')]);
+  return [
+    ...themes.map((t) => ({ id: t.id, questionIds: t.data.questions.map((q) => q.id) })),
+    ...techQuizzes.map((t) => ({ id: techQuizId(t.id), questionIds: t.data.questions.map((q) => q.id) })),
+  ];
+}
+
+/** Parcours et révisions du moment ; states : état de révision de chaque question déjà vue (renforcement). */
+export async function loadLearning(
+  history?: History,
+): Promise<{ history: History; path: Path; reviews: Reviews; states: Map<string, ReviewState> }> {
+  history ??= await loadHistory();
+  const [units, quizzes] = await Promise.all([loadUnits(), loadQuizzes()]);
+  const path = computePath(units, history);
+  const done = new Set(doneQuizzes(path));
+  const states = reviewStates(history.quizSessions);
+  const reviews = dueReviews(states, quizzes.filter((q) => done.has(q.id)), new Date());
+  return { history, path, reviews, states };
+}
+
+/** Ce que l'étape demande de faire, avec le lien : « Lire la fiche X », « Quiz X »… null : parcours terminé. */
+export async function describeStep(step: Step | null) {
+  if (!step) return null;
+  if (step.kind === 'lesson') {
+    const name = (await getEntry('techs', step.id))?.data.name ?? step.id;
+    return step.viewed
+      ? { label: `Quiz ${name}`, href: `/quiz/techno/${step.id}` }
+      : { label: `Lire la fiche ${name}`, href: `/fiches/${step.id}` };
+  }
+  if (step.kind === 'theme') {
+    const title = (await getEntry('quiz', step.id))?.data.title ?? step.id;
+    return { label: `Quiz du thème ${title}`, href: `/quiz/${step.id}` };
+  }
+  const title = (await getEntry('scenarios', step.id))?.data.title ?? step.id;
+  return { label: `Scénario : ${title}`, href: `/jouer/${step.id}` };
+}
+
 export interface ProgressView extends Omit<Progress, 'unlocked'> {
   badges: { id: string; icon: string; label: string; description: string; unlockedAt: string | null }[];
   newBadges: string[]; // ids débloqués par cet appel
+  reviewsDue: number; // questions déjà vues arrivées à échéance
+  next: { label: string; href: string } | null; // prochaine étape du parcours
 }
 
 /** Progression actuelle. Enregistre au passage les badges dont la condition vient d'être remplie. */
@@ -51,7 +105,8 @@ export async function getProgress(): Promise<ProgressView> {
     questionIds: t.data.questions.map((q) => q.id),
   });
   const [themes, techQuizzes] = await Promise.all([getCollection('quiz'), getCollection('techQuiz')]);
-  const { unlocked, ...progress } = computeProgress(await loadHistory(), themes.map(toTheme), techQuizzes.map(toTheme), new Date());
+  const { history, path, reviews } = await loadLearning();
+  const { unlocked, ...progress } = computeProgress(history, themes.map(toTheme), techQuizzes.map(toTheme), new Date());
 
   const db = await getDb();
   const inserted = unlocked.length
@@ -71,5 +126,7 @@ export async function getProgress(): Promise<ProgressView> {
     ...progress,
     badges: BADGES.map(({ test: _, ...b }) => ({ ...b, unlockedAt: dates.get(b.id) ?? null })),
     newBadges,
+    reviewsDue: reviews.due,
+    next: await describeStep(path.current),
   };
 }
