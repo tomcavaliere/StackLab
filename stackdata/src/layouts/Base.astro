@@ -1,0 +1,85 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  wide?: boolean;
+}
+const { title, wide = false } = Astro.props;
+const path = Astro.url.pathname;
+// Les parcours (accueil) mènent aux quiz, scénarios et entreprises au fil des étapes : ils ne sont pas dans la nav.
+const nav = [
+  ['/', 'Parcours'],
+  ['/revisions', 'Révisions'],
+  ['/renforcement', 'Renforcement'],
+  ['/fiches', 'Fiches'],
+  ['/progression', 'Progression'],
+];
+// Une page de quiz en renforcement (?renforcement) relève de l'onglet Renforcement, pas du parcours.
+const reinforce = Astro.url.searchParams.has('renforcement');
+const active = (href: string) =>
+  href === '/renforcement'
+    ? path.startsWith(href) || reinforce
+    : href === '/'
+      ? !reinforce && ['/', '/parcours', '/quiz', '/jouer', '/entreprises', '/verrou'].some((p) => (p === '/' ? path === '/' : path.startsWith(p)))
+      : path.startsWith(href);
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · StackData</title>
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <!-- Ordi : une ligne. Téléphone : logo et widget en haut, liens en dessous (défilent si besoin). -->
+    <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200 bg-white px-4 py-3 md:flex-nowrap md:px-8">
+      <a href="/" class="font-semibold">StackData</a>
+      <div class="order-last -mx-4 flex w-[calc(100%+2rem)] gap-5 overflow-x-auto px-4 whitespace-nowrap md:order-none md:mx-0 md:w-auto md:gap-6 md:overflow-visible md:px-0">
+        {
+          nav.map(([href, label]) => (
+            <a href={href} class:list={['hover:text-blue-700', active(href) && 'text-blue-700 font-medium']}>
+              {label}
+              {href === '/revisions' && <span id="reviews-count" hidden class="ml-0.5 rounded-full bg-violet-600 px-1.5 text-xs text-white" />}
+            </a>
+          ))
+        }
+      </div>
+      <a id="progress-widget" href="/progression" class="ml-auto text-right text-sm text-slate-600 hover:text-blue-700"></a>
+    </nav>
+    <main class:list={['mx-auto px-4 py-4 md:px-8 md:py-6', wide ? 'max-w-[1600px]' : 'max-w-6xl']}>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<script>
+  // Widget de progression, rafraîchi au chargement et quand le quiz enregistre une session.
+  function refresh() {
+    fetch('/api/progress')
+      .then((r) => r.json())
+      .then(
+        ({
+          xp,
+          level,
+          streak,
+          reviewsDue,
+        }: {
+          xp: number;
+          level: { number: number; name: string };
+          streak: { current: number; today: boolean };
+          reviewsDue: number;
+        }) => {
+        const count = document.getElementById('reviews-count')!;
+        count.textContent = String(reviewsDue);
+        count.hidden = reviewsDue === 0;
+        const widget = document.getElementById('progress-widget')!;
+        widget.textContent = `Niv. ${level.number} ${level.name} · ${xp} XP · 🔥 ${streak.current}`;
+        widget.title = streak.today ? 'Série du jour validée' : 'Joue aujourd’hui pour faire vivre ta série';
+        },
+      );
+  }
+  refresh();
+  window.addEventListener('stackdata:progress', refresh);
+</script>

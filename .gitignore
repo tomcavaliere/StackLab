@@ -7,8 +7,8 @@ dist/
 .astro/
 
 # base locale (progression et historique de jeu)
-data/*.db
-data/*.db-*
+**/data/*.db
+**/data/*.db-*
 
 # éditeur / OS
 .vscode/*
