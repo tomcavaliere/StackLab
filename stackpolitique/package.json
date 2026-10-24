@@ -1,0 +1,28 @@
+{
+  "name": "stackpolitique",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "node scripts/check-content.mjs && astro build",
+    "test": "vitest run",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^7.0.1",
+    "@astrojs/vercel": "^11.0.16",
+    "@libsql/client": "^0.18.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "vitest": "^5.0.3",
+    "yaml": "2.9.1"
+  }
+}

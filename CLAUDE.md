@@ -5,6 +5,7 @@ Deux apps web perso, un seul utilisateur chacune, même méthode (fiches, quiz, 
 | Dossier | App | Sujet |
 |---|---|---|
 | `stackdata/` | **StackData** (ex-StackLab) | le rôle de chaque techno dans une stack tech / data, et composer une stack pour un besoin |
+| `stackpolitique/` | **StackPolitique** | les mouvements politiques français : histoire, idées, programme et figures de chaque parti |
 
 Chaque app a son propre `CLAUDE.md` (périmètre, architecture, procédures, avancement), son projet Vercel et sa base Turso. Le moteur est **copié** d'une app à l'autre, pas partagé : chacune évolue librement. Un changement du moteur qui vaut pour les deux se reporte à la main.
 
@@ -17,6 +18,7 @@ Chaque app a son propre `CLAUDE.md` (périmètre, architecture, procédures, ava
 | Commande (racine) | Effet |
 |---|---|
 | `npm run dev:data` | StackData sur http://localhost:4321 |
+| `npm run dev:politique` | StackPolitique sur http://localhost:4322 |
 | `npm run build` | Build de toutes les apps |
 | `npm test` | Tests de toutes les apps |
 

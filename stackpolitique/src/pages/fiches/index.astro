@@ -1,0 +1,106 @@
+---
+// Bibliothèque des fiches : un onglet par type (?type=<kind>, le premier par défaut), ou toutes les fiches d'un tag (?tag=…).
+// Toutes les fiches se lisent ; seul le parcours ouvre leurs quiz. Chaque carte montre où on en est.
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import FichesTabs from '../../components/FichesTabs.astro';
+import { FAMILIES, KIND_DESCRIPTIONS, KINDS, type Kind } from '../../lib/taxonomy';
+import { getProgress, loadLearning } from '../../lib/progress';
+import { stepOf } from '../../lib/path';
+
+const all = (await getCollection('fiches')).sort((a, b) => a.data.name.localeCompare(b.data.name, 'fr'));
+const names = new Map(all.map((f) => [f.id, f.data.name]));
+const tag = Astro.url.searchParams.get('tag');
+const kinds = Object.keys(KINDS).filter((k) => all.some((t) => t.data.kind === k)) as Kind[];
+const param = Astro.url.searchParams.get('type') as Kind | null;
+const kind = tag ? null : param && kinds.includes(param) ? param : kinds[0];
+const fiches = all.filter((t) => (kind ? t.data.kind === kind : t.data.tags.includes(tag!)));
+
+const [{ path }, { fiches: mastery }] = await Promise.all([loadLearning(), getProgress()]);
+const STATUS = {
+  maitrisee: { label: '★ maîtrisée', style: 'text-emerald-700' },
+  validee: { label: '✓ leçon validée', style: 'text-emerald-700' },
+  'en-cours': { label: '▶ étape en cours', style: 'text-blue-700' },
+  lue: { label: '✓ lue', style: 'text-slate-600' },
+  'a-venir': { label: 'à venir dans le parcours', style: 'text-slate-400' },
+};
+function status(id: string): keyof typeof STATUS {
+  const step = stepOf(path, 'lesson', id);
+  const m = mastery[id];
+  if (m && m.total > 0 && m.mastered === m.total) return 'maitrisee';
+  if (step?.status === 'done') return 'validee';
+  if (step?.status === 'current') return 'en-cours';
+  return step?.viewed ? 'lue' : 'a-venir';
+}
+---
+
+<Base title="Fiches">
+  <h1 class="text-2xl font-bold">Fiches</h1>
+  <div class="mt-4"><FichesTabs current={kind ?? ''} /></div>
+  {
+    kind ? (
+      <p class="mt-4 text-sm text-slate-600">{KIND_DESCRIPTIONS[kind]}</p>
+    ) : (
+      <p class="mt-4 text-sm text-slate-600">
+        Fiches avec le tag <strong>#{tag}</strong>, tous types confondus.
+      </p>
+    )
+  }
+  <form id="filters" class="mt-4 flex flex-wrap items-center gap-3">
+    <input name="q" type="search" placeholder="Rechercher dans cet onglet…" class="w-full rounded border border-slate-300 bg-white px-2 py-1 md:w-64" />
+    <label class="flex items-center gap-1 text-sm"><input name="unread" type="checkbox" /> non lues</label>
+    <span id="count" class="text-sm text-slate-500"></span>
+  </form>
+
+  <ul class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+    {
+      fiches.map((t) => {
+        const s = status(t.id);
+        return (
+          <li data-id={t.id} data-read={stepOf(path, 'lesson', t.id)?.viewed ? '1' : ''} data-text={`${t.data.name} ${t.id} ${t.data.summary}`.toLowerCase()}>
+            <a
+              href={`/fiches/${t.id}`}
+              class:list={[
+                'flex h-full flex-col gap-2 rounded border bg-white p-4 hover:border-slate-400',
+                s === 'en-cours' ? 'border-blue-400' : 'border-slate-200',
+                s === 'a-venir' && 'opacity-70',
+              ]}
+            >
+              <span class="flex flex-wrap items-baseline justify-between gap-x-2">
+                <span class="font-semibold">{t.data.name}</span>
+                <span class={`text-xs ${STATUS[s].style}`}>{STATUS[s].label}</span>
+              </span>
+              <span class="text-sm text-slate-600">{t.data.summary}</span>
+              {t.data.family && <span class="text-xs text-slate-500">{FAMILIES[t.data.family]}</span>}
+              {t.data.party && <span class="text-xs text-slate-500">{names.get(t.data.party.id)}</span>}
+            </a>
+          </li>
+        );
+      })
+    }
+  </ul>
+  <p id="empty" hidden class="mt-8 text-slate-500">Aucune fiche ne correspond.</p>
+</Base>
+
+<script>
+  const form = document.getElementById('filters') as HTMLFormElement;
+  const items = [...document.querySelectorAll<HTMLElement>('li[data-id]')];
+
+  function apply() {
+    const f = new FormData(form);
+    const q = String(f.get('q') ?? '').toLowerCase().trim();
+    const unread = f.get('unread') === 'on';
+    let n = 0;
+    for (const li of items) {
+      const ok = (!q || li.dataset.text!.includes(q)) && (!unread || !li.dataset.read);
+      li.hidden = !ok;
+      if (ok) n++;
+    }
+    document.getElementById('count')!.textContent = `${n} fiche${n > 1 ? 's' : ''}`;
+    document.getElementById('empty')!.hidden = n > 0;
+  }
+
+  form.addEventListener('input', apply);
+  form.addEventListener('submit', (e) => e.preventDefault());
+  apply();
+</script>

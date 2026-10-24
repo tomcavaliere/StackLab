@@ -5,6 +5,7 @@ Des apps web perso pour apprendre un domaine en profondeur : des fiches, un quiz
 | App | Dossier | Sujet |
 |---|---|---|
 | **StackData** | [`stackdata/`](stackdata/README.md) | à quoi sert chaque techno d'une stack tech / data, et composer une stack adaptée à un besoin |
+| **StackPolitique** | [`stackpolitique/`](stackpolitique/README.md) | les mouvements politiques français : histoire, idées, programme et figures de chaque parti |
 
 ## Démarrer
 
@@ -43,5 +44,6 @@ Un dépôt, des workspaces npm : un `node_modules` et un lockfile communs à la 
 | Commande (racine) | Effet |
 |---|---|
 | `npm run dev:data` | StackData sur http://localhost:4321 |
+| `npm run dev:politique` | StackPolitique sur http://localhost:4322 |
 | `npm run build` | Build de toutes les apps |
 | `npm test` | Tests de toutes les apps |

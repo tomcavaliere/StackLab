@@ -1,0 +1,115 @@
+---
+// Accueil : révisions du jour, prochaine étape du parcours suivi, puis tous les parcours (tronc commun, partis par famille, comparaisons).
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { describeStep, loadLearning } from '../lib/progress';
+import { allSteps, isOpen, stepOf, type PathParcours } from '../lib/path';
+import { FAMILIES } from '../lib/taxonomy';
+
+const { path, reviews } = await loadLearning();
+const next = await describeStep(path.next);
+const familyOf = new Map((await getCollection('fiches')).map((f) => [f.id, f.data.family]));
+const titleOf = new Map(path.parcours.map((p) => [p.id, p.title]));
+const nextParcours = path.next && titleOf.get(path.next.parcours);
+const followed = path.parcours.find((p) => p.id === path.followed);
+
+const tronc = path.parcours.filter((p) => p.kind === 'tronc');
+const families = Object.entries(FAMILIES)
+  .map(([family, label]) => ({ label, items: path.parcours.filter((p) => p.kind === 'parti' && familyOf.get(p.party!) === family) }))
+  .filter((f) => f.items.length > 0);
+const comparaisons = path.parcours.filter((p) => p.kind === 'comparaison');
+
+// Étapes distinctes (une étape partagée par plusieurs parcours ne compte qu'une fois).
+const distinct = new Map(allSteps(path).map((s) => [`${s.kind}:${s.id}`, s]));
+const unlockedQuiz = [...distinct.values()].filter((s) => isOpen(stepOf(path, s.kind, s.id))).length;
+const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const link = 'text-blue-700 underline';
+const waiting = (p: PathParcours) => `après ${p.waitingFor.map((id) => titleOf.get(id)).join(', ')}`;
+---
+
+<Base title="Parcours">
+  <h1 class="text-2xl font-bold">Parcours</h1>
+
+  <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+    {
+      reviews.due > 0 ? (
+        <a href="/revisions" class="flex flex-col rounded border-2 border-violet-300 bg-violet-50 px-5 py-4 hover:border-violet-500">
+          <span class="text-lg font-semibold text-violet-900">🔁 Révisions du jour : {reviews.due} question{reviews.due > 1 ? 's' : ''}</span>
+          <span class="text-sm text-violet-800">À faire en premier : c'est le moment où tu risques de les oublier.</span>
+        </a>
+      ) : (
+        <div class="flex flex-col rounded border border-slate-200 bg-white px-5 py-4">
+          <span class="font-semibold">🔁 Aucune révision aujourd'hui</span>
+          <span class="text-sm text-slate-500">{reviews.next ? `Prochaine révision : ${day(reviews.next)}` : 'Les questions réussies reviendront ici, de plus en plus espacées.'}</span>
+        </div>
+      )
+    }
+    {
+      next ? (
+        <a href={next.href} class="flex flex-col rounded bg-blue-600 px-5 py-4 text-white hover:bg-blue-700">
+          <span class="text-sm opacity-80">Continuer · {nextParcours}</span>
+          <span class="text-lg font-semibold">{next.label} →</span>
+        </a>
+      ) : (
+        <div class="rounded border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900">
+          <span class="font-semibold">{followed ? `🎉 Parcours « ${followed.title} » terminé.` : '🎉 Tronc commun terminé.'}</span>
+          <span class="block text-sm">Choisis un parcours ci-dessous et clique sur « Suivre ce parcours ».</span>
+        </div>
+      )
+    }
+  </div>
+
+  {
+    [
+      { title: 'Tronc commun', intro: 'Le socle : il ouvre tous les autres parcours.', groups: [{ label: '', items: tronc }] },
+      { title: 'Partis', intro: 'Un parcours par parti : son histoire, ses idées, son programme, ses figures. Plusieurs peuvent se suivre en parallèle.', groups: families },
+      { title: 'Comparaisons', intro: 'Quel parti défend quoi : ces quiz s’ouvrent quand les partis comparés sont faits.', groups: [{ label: '', items: comparaisons }] },
+    ]
+      .filter((section) => section.groups.some((g) => g.items.length > 0))
+      .map((section) => (
+      <section class="mt-8">
+        <h2 class="text-xl font-semibold">{section.title}</h2>
+        <p class="text-sm text-slate-500">{section.intro}</p>
+        {section.groups.map((g) => (
+          <>
+            {g.label && <h3 class="mt-4 text-sm font-semibold tracking-wide text-slate-500 uppercase">{g.label}</h3>}
+            <ul class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {g.items.map((p) => (
+                <li>
+                  <a
+                    href={`/parcours/${p.id}`}
+                    class:list={[
+                      'flex h-full flex-col gap-1 rounded border bg-white px-4 py-3 hover:border-slate-400',
+                      p.id === path.followed ? 'border-blue-400' : 'border-slate-200',
+                      !p.unlocked && 'opacity-60',
+                    ]}
+                  >
+                    <span class="flex flex-wrap items-baseline gap-x-2">
+                      <span class="font-semibold">
+                        {p.status === 'done' ? '✓ ' : !p.unlocked && '🔒 '}
+                        {p.title}
+                      </span>
+                      {p.id === path.followed && <span class="text-xs font-medium text-blue-700">★ suivi</span>}
+                      <span class="ml-auto text-sm text-slate-500">
+                        {p.done} / {p.total}
+                      </span>
+                    </span>
+                    <span class="text-sm text-slate-600">{p.intro}</span>
+                    {!p.unlocked && <span class="text-xs text-slate-500">S'ouvre {waiting(p)}</span>}
+                    <span class="mt-auto block h-1.5 overflow-hidden rounded-full bg-slate-200">
+                      <span class="block h-full rounded-full bg-emerald-500" style={`width: ${(100 * p.done) / p.total}%`} />
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        ))}
+      </section>
+    ))
+  }
+
+  <p class="mt-8 text-sm text-slate-600">
+    Débloqués : <a href="/quiz" class={link}>{unlockedQuiz} quiz</a>
+  </p>
+</Base>

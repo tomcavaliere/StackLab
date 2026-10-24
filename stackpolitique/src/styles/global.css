@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Corps Markdown des fiches (pas de plugin typography). */
+.md h2 { @apply mt-6 mb-2 text-lg font-semibold; }
+.md h3 { @apply mt-4 mb-1 font-semibold; }
+.md p { @apply my-2 leading-relaxed; }
+.md ul { @apply my-2 list-disc pl-6; }
+.md ol { @apply my-2 list-decimal pl-6; }
+.md li { @apply my-1; }
+.md a { @apply text-blue-700 underline; }
+.md code { @apply rounded bg-slate-100 px-1 text-sm; }
+/* Blocs de code (colorés par Shiki au build) : défilent dans leur cadre, jamais la page. */
+.md pre { @apply my-3 overflow-x-auto rounded p-3 text-sm leading-snug; }
+.md pre code { @apply bg-transparent p-0 text-[length:inherit]; }
+.md strong { @apply font-semibold; }
+
+/* Gain d'XP au quiz : petit rebond à l'apparition. */
+@keyframes xp-pop {
+  0% { transform: translateY(6px) scale(0.8); opacity: 0; }
+  40% { transform: translateY(-4px) scale(1.15); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+.xp-pop { display: inline-block; animation: xp-pop 0.6s ease-out; }

@@ -1,0 +1,89 @@
+---
+// Renforcement : les questions jamais vues des étapes validées (le parcours n'en pose que 10 par quiz).
+// Facultatif, fiche par fiche : une question n'entre en révision qu'une fois vue (src/lib/review.ts).
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { loadLearning, loadQuizzes } from '../lib/progress';
+import { unseen } from '../lib/review';
+import { SESSION_SIZE, ficheQuizId } from '../lib/rewards';
+
+const [{ path, states }, quizzes, fiches, themes] = await Promise.all([
+  loadLearning(),
+  loadQuizzes(),
+  getCollection('fiches'),
+  getCollection('quiz'),
+]);
+const quizById = new Map(quizzes.map((q) => [q.id, q]));
+const ficheName = new Map(fiches.map((f) => [f.id, f.data.name]));
+const themeTitle = new Map(themes.map((t) => [t.id, t.data.title]));
+
+// Par parcours ; un quiz partagé par plusieurs parcours n'apparaît que dans le premier.
+const listed = new Set<string>();
+const units = path.parcours
+  .map((p) => ({
+    title: p.title,
+    rows: p.units
+      .flatMap((u) => u.steps)
+      .filter((s) => s.status === 'done' && !listed.has(`${s.kind}:${s.id}`))
+      .map((s) => {
+        listed.add(`${s.kind}:${s.id}`);
+        const quiz = quizById.get(s.kind === 'lesson' ? ficheQuizId(s.id) : s.id)!;
+        const left = unseen(states, quiz).length;
+        return {
+          label: s.kind === 'lesson' ? ficheName.get(s.id) : `Thème : ${themeTitle.get(s.id)}`,
+          href: `${s.kind === 'lesson' ? `/quiz/fiche/${s.id}` : `/quiz/${s.id}`}?renforcement`,
+          seen: quiz.questionIds.length - left,
+          total: quiz.questionIds.length,
+          left,
+        };
+      }),
+  }))
+  .filter((u) => u.rows.length > 0);
+const left = units.flatMap((u) => u.rows).reduce((n, r) => n + r.left, 0);
+---
+
+<Base title="Renforcement">
+  <h1 class="text-2xl font-bold">Renforcement</h1>
+  <p class="mt-1 max-w-3xl text-slate-600">
+    Le parcours pose {SESSION_SIZE} questions par quiz. Ici, les autres questions des étapes validées, {SESSION_SIZE} par session. Une question vue entre dans les
+    révisions, une question jamais vue n'y vient pas : renforce les fiches qui t'intéressent, laisse les autres.
+  </p>
+  {
+    units.length === 0 ? (
+      <div class="mt-4 max-w-xl rounded border border-slate-200 bg-white px-5 py-5">
+        <p class="font-semibold">Rien à renforcer pour l'instant.</p>
+        <p class="mt-1 text-slate-600">Valide une première étape du parcours : ses questions restantes apparaîtront ici.</p>
+        <a href="/" class="mt-4 inline-block rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Continuer le parcours →</a>
+      </div>
+    ) : (
+      <>
+        <p class="mt-2 text-sm text-slate-500">{left} question{left > 1 ? 's' : ''} jamais vue{left > 1 ? 's' : ''} au total.</p>
+        {units.map((u) => (
+          <section class="mt-6 max-w-3xl">
+            <h2 class="mb-2 text-lg font-semibold">{u.title}</h2>
+            <ul class="space-y-2">
+              {u.rows.map((r) => (
+                <li class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded border border-slate-200 bg-white px-4 py-3">
+                  <span class="font-medium">{r.label}</span>
+                  <span class="text-sm text-slate-500">
+                    {r.seen} / {r.total} questions vues
+                  </span>
+                  <span class="h-2 w-24 overflow-hidden rounded-full bg-slate-200">
+                    <span class="block h-full rounded-full bg-violet-500" style={`width: ${(100 * r.seen) / r.total}%`} />
+                  </span>
+                  {r.left > 0 ? (
+                    <a href={r.href} class="ml-auto rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+                      Renforcer ({Math.min(SESSION_SIZE, r.left)})
+                    </a>
+                  ) : (
+                    <span class="ml-auto text-sm text-emerald-700">✓ tout vu</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </>
+    )
+  }
+</Base>

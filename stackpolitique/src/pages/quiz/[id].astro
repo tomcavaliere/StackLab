@@ -1,0 +1,45 @@
+---
+import { getCollection, getEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Quiz, { type QuizQuestion } from '../../components/quiz/Quiz';
+import { loadLearning } from '../../lib/progress';
+import { isOpen, stepOf } from '../../lib/path';
+import { unseen } from '../../lib/review';
+
+const theme = await getEntry('quiz', Astro.params.id!);
+if (!theme) return new Response('Introuvable', { status: 404 });
+const { path, states } = await loadLearning();
+// Renforcement (?renforcement) : les questions jamais vues d'un thème déjà validé.
+const reinforce = Astro.url.searchParams.has('renforcement');
+const step = stepOf(path, 'theme', theme.id);
+if (reinforce && step?.status !== 'done') return Astro.redirect('/renforcement');
+if (!isOpen(step)) return Astro.redirect(`/verrou?etape=theme&id=${theme.id}`);
+const left = new Set(unseen(states, { id: theme.id, questionIds: theme.data.questions.map((q) => q.id) }));
+const fiches = await getCollection('fiches');
+
+// L'îlot reçoit des ids en clair (les références Astro sont des { id, collection }) et les noms des fiches citées.
+const questions: QuizQuestion[] = theme.data.questions
+  .filter((q) => !reinforce || left.has(q.id))
+  .map(({ decoy, ...q }) => ({ ...q, answer: q.answer.id, decoys: [decoy.id] }));
+const cited = new Set(questions.flatMap((q) => [q.answer, ...q.decoys]));
+const ficheNames = Object.fromEntries(fiches.filter((f) => cited.has(f.id)).map((f) => [f.id, f.data.name]));
+---
+
+<Base title={`Quiz · ${theme.data.title}`}>
+  <a href={reinforce ? '/renforcement' : '/'} class="text-sm text-slate-500 hover:text-blue-700">
+    ← {reinforce ? 'Renforcement' : 'Parcours'}
+  </a>
+  <h1 class="mt-2 text-2xl font-bold">{reinforce && 'Renforcement · '}{theme.data.title}</h1>
+  <p class="mt-1 mb-6 text-slate-600">
+    {reinforce ? `${questions.length} questions jamais vues sur ${theme.data.questions.length}.` : theme.data.description}
+  </p>
+  {
+    questions.length > 0 ? (
+      <Quiz client:only="react" themeId={theme.id} questions={questions} ficheNames={ficheNames} reinforce={reinforce} />
+    ) : (
+      <p class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+        ✓ Toutes les questions de ce thème sont déjà vues : elles reviennent dans les révisions.
+      </p>
+    )
+  }
+</Base>

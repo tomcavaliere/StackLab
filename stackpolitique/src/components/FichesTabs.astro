@@ -1,0 +1,31 @@
+---
+// Onglets de la bibliothèque : un par type de fiche (ordre de KINDS). Défilent sur téléphone.
+import { getCollection } from 'astro:content';
+import { KINDS } from '../lib/taxonomy';
+
+interface Props {
+  current: string; // un kind, ou '' (vue d'un tag)
+}
+const { current } = Astro.props;
+const fiches = await getCollection('fiches');
+const tabs = Object.entries(KINDS)
+  .map(([kind, label]) => ({ key: kind, href: `/fiches?type=${kind}`, label, count: fiches.filter((f) => f.data.kind === kind).length }))
+  .filter((t) => t.count > 0);
+---
+
+<div class="-mx-4 flex gap-1 overflow-x-auto border-b border-slate-200 px-4 whitespace-nowrap md:mx-0 md:flex-wrap md:px-0">
+  {
+    tabs.map((t) => (
+      <a
+        href={t.href}
+        class:list={[
+          '-mb-px shrink-0 border-b-2 px-3 py-2 text-sm',
+          t.key === current ? 'border-blue-600 font-medium text-blue-700' : 'border-transparent text-slate-600 hover:text-blue-700',
+        ]}
+      >
+        {t.label}
+        {t.count > 0 && <span class="ml-1 text-xs text-slate-400">{t.count}</span>}
+      </a>
+    ))
+  }
+</div>

@@ -1,0 +1,200 @@
+---
+import { getCollection, render, type CollectionEntry, getEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { DIFFICULTIES, FAMILIES, KINDS, SOURCE_TYPES } from '../../lib/taxonomy';
+import { getDb } from '../../lib/db';
+import { loadLearning } from '../../lib/progress';
+import { placesOf, stepOf } from '../../lib/path';
+import { isOld } from '../../lib/sources';
+
+const fiche = await getEntry('fiches', Astro.params.id!);
+if (!fiche) return new Response('Introuvable', { status: 404 });
+const { Content } = await render(fiche);
+// La vue est enregistrée côté serveur, avant le calcul du parcours : le quiz s'ouvre dès l'affichage de la fiche.
+await (await getDb()).execute({ sql: 'INSERT INTO fiche_views (fiche_id) VALUES (?)', args: [fiche.id] });
+const { path } = await loadLearning();
+const step = stepOf(path, 'lesson', fiche.id);
+const quizOpen = step && step.status !== 'locked';
+const place = placesOf(path, 'lesson', fiche.id)[0];
+const all = await getCollection('fiches');
+const byId = new Map(all.map((f) => [f.id, f]));
+const quiz = await getEntry('ficheQuiz', fiche.id);
+const d = fiche.data;
+const party = d.party && byId.get(d.party.id);
+// Fiche d'un parti : ses personnalités (celles dont `party` pointe vers lui).
+const members = all
+  .filter((f) => f.data.party?.id === fiche.id)
+  .sort((a, b) => a.data.name.localeCompare(b.data.name, 'fr'));
+
+type Link = { fiche: CollectionEntry<'fiches'>; note: string };
+
+// Liens affichés dans les deux sens : un lien déclaré sur A vers B apparaît aussi sur B, avec la mention de A.
+const links: Link[] = d.liens.map((l) => ({ fiche: byId.get(l.fiche.id)!, note: l.note }));
+for (const other of all) {
+  for (const l of other.data.liens) {
+    if (l.fiche.id !== fiche.id || links.some((o) => o.fiche.id === other.id)) continue;
+    links.push({ fiche: other, note: `Depuis la fiche ${other.data.name} : ${l.note}` });
+  }
+}
+links.sort((a, b) => a.fiche.data.name.localeCompare(b.fiche.data.name, 'fr'));
+
+const date = (x: Date) => x.toISOString().slice(0, 10);
+// Une source ancienne n'est un risque que pour ce qui bouge (partis, personnalités) : pour une notion ou une date, c'est normal.
+const old = (x: Date) => (d.kind === 'parti' || d.kind === 'personnalite') && isOld(x);
+const oldCount = d.sources.filter((s) => old(s.date)).length;
+const link = 'text-blue-700 underline';
+---
+
+<Base title={d.name}>
+  <article data-fiche-id={fiche.id}>
+    <a href={`/fiches?type=${d.kind}`} class="text-sm text-slate-500 hover:text-blue-700">← Fiches · {KINDS[d.kind]}</a>
+    <header class="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+      <h1 class="text-3xl font-bold">{d.name}</h1>
+      <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{KINDS[d.kind]}</span>
+      <span class="text-sm text-slate-500">
+        {'●'.repeat(d.difficulty)}{'○'.repeat(3 - d.difficulty)}
+        {DIFFICULTIES[d.difficulty]}
+      </span>
+      {
+        quiz && quizOpen && (
+          <a
+            href={`/quiz/fiche/${fiche.id}`}
+            class="ml-auto self-center rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            🎯 Quiz {d.name}
+            <span data-quiz-mastery class="ml-1 text-xs font-normal opacity-80">{quiz.data.questions.length} questions</span>
+          </a>
+        )
+      }
+      {
+        quiz && !quizOpen && place && (
+          <span class="ml-auto self-center rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-500">
+            🔒 Quiz ouvert quand le parcours arrive ici ({place.parcours.title}, unité « {place.unit.title} »)
+          </span>
+        )
+      }
+    </header>
+
+    <p class="mt-3 max-w-3xl rounded border-l-4 border-blue-400 bg-white px-4 py-3 text-lg">
+      <span class="block text-xs font-semibold tracking-wide text-slate-500 uppercase">En une phrase</span>
+      {d.summary}
+    </p>
+
+    <dl class="mt-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+      {
+        d.family && (
+          <>
+            <dt class="text-slate-500">Famille</dt>
+            <dd>{FAMILIES[d.family]}</dd>
+          </>
+        )
+      }
+      {
+        party && (
+          <>
+            <dt class="text-slate-500">Parti</dt>
+            <dd><a href={`/fiches/${party.id}`} class={link}>{party.data.name}</a></dd>
+          </>
+        )
+      }
+      {
+        members.length > 0 && (
+          <>
+            <dt class="text-slate-500">Personnalités</dt>
+            <dd>
+              {members.map((m, i) => (
+                <>
+                  {i > 0 && ', '}
+                  <a href={`/fiches/${m.id}`} class={link}>{m.data.name}</a>
+                </>
+              ))}
+            </dd>
+          </>
+        )
+      }
+      {
+        d.tags.length > 0 && (
+          <>
+            <dt class="text-slate-500">Tags</dt>
+            <dd>
+              {d.tags.map((t) => (
+                <a href={`/fiches?tag=${t}`} class="mr-2 text-slate-600 hover:text-blue-700">#{t}</a>
+              ))}
+            </dd>
+          </>
+        )
+      }
+      <dt class="text-slate-500">À jour au</dt>
+      <dd>
+        {date(d.lastResearched)}
+        {oldCount > 0 && <span class="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">⚠ {oldCount} source{oldCount > 1 ? 's' : ''} de plus de 3 ans</span>}
+      </dd>
+    </dl>
+
+    <div class="md mt-4 max-w-3xl">
+      <Content />
+    </div>
+
+    {
+      links.length > 0 && (
+        <section class="mt-6 max-w-3xl">
+          <h2 class="mb-2 text-lg font-semibold">Liens</h2>
+          <ul class="space-y-2">
+            {links.map((l) => (
+              <li class="rounded border border-slate-200 bg-white px-3 py-2">
+                <a href={`/fiches/${l.fiche.id}`} class="font-medium text-blue-700 underline">{l.fiche.data.name}</a>
+                <span class="text-sm text-slate-600"> : {l.note}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="mt-6 max-w-3xl">
+      <h2 class="mb-2 text-lg font-semibold">Sources</h2>
+      <ul class="space-y-2 text-sm">
+        {
+          d.sources.map((s) => {
+            const stale = old(s.date);
+            return (
+              <li class:list={['rounded border px-3 py-2', stale ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white']}>
+                <a href={s.url} class={link} target="_blank" rel="noopener">{s.title}</a>
+                <span class="text-slate-500">
+                  {' '}· {SOURCE_TYPES[s.type]} · {date(s.date)}
+                  {stale && <span class="text-amber-800"> · ⚠ plus de 3 ans</span>}
+                </span>
+                {s.note && <span class="block text-slate-500">{s.note}</span>}
+              </li>
+            );
+          })
+        }
+      </ul>
+    </section>
+
+    {
+      step?.status === 'current' && (
+        <div class="mt-8 flex max-w-3xl flex-wrap items-center gap-3 rounded border-2 border-blue-300 bg-blue-50 px-4 py-4">
+          <span class="font-medium text-blue-900">Fiche lue ? Vérifie que c'est acquis : 7 bonnes réponses sur 10 valident l'étape.</span>
+          <a href={`/quiz/fiche/${fiche.id}`} class="ml-auto rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+            Passer au quiz →
+          </a>
+        </div>
+      )
+    }
+  </article>
+</Base>
+
+<script>
+  const ficheId = document.querySelector<HTMLElement>('[data-fiche-id]')!.dataset.ficheId;
+
+  const mastery = document.querySelector('[data-quiz-mastery]');
+  if (mastery) {
+    fetch('/api/progress')
+      .then((r) => r.json())
+      .then(({ fiches }: { fiches: Record<string, { mastered: number; total: number; sessions: number }> }) => {
+        const f = fiches[ficheId!];
+        if (f?.sessions) mastery.textContent = f.mastered === f.total ? '✓ maîtrisée' : `${f.mastered} / ${f.total} maîtrisées`;
+      });
+  }
+</script>
