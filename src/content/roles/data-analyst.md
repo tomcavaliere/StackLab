@@ -21,6 +21,7 @@ stack:
     techs:
       - { tech: dbt, essential: true, why: "Écrit les transformations en SQL versionné et testé : les tables analytiques deviennent fiables et documentées." }
       - { tech: pandas, essential: true, why: "Manipule des tableaux de données en Python quand SQL devient trop contraignant." }
+      - { tech: jupyter, why: "Le notebook où l'on enchaîne requêtes, tableaux et graphiques, avec le texte qui explique l'analyse." }
       - { tech: python, why: "Pour automatiser un traitement ou aller là où SQL ne suffit pas." }
   - step: Visualiser et partager
     intro: "Une analyse qui n'est pas comprise ne sert à rien : on choisit le graphique qui répond à la question."

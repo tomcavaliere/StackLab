@@ -20,9 +20,9 @@ parcours:
         intro: "Comment une application expose ses données (une API REST) et où elle les range (une base relationnelle)."
         lessons: [rest, postgresql]
       - id: livrer
-        title: Livrer
-        intro: "Emballer une application pour qu'elle tourne de la même façon partout."
-        lessons: [docker]
+        title: Versionner et livrer
+        intro: "Garder l'historique du code et travailler à plusieurs, puis emballer l'application pour qu'elle tourne de la même façon partout."
+        lessons: [git, docker]
 
   # ─── Métiers ────────────────────────────────────────────────────────────────
   - id: data-analyst
@@ -34,8 +34,8 @@ parcours:
     units:
       - id: interroger
         title: Interroger les données
-        intro: "Du SQL rapide sur des fichiers, sans serveur à installer."
-        lessons: [duckdb]
+        intro: "Le notebook pour explorer pas à pas, et du SQL rapide sur des fichiers, sans serveur à installer."
+        lessons: [jupyter, duckdb]
       - id: entrepot
         title: Lire dans un entrepôt de données
         intro: "Les données de l'entreprise sont centralisées dans un entrepôt interrogé en SQL."
@@ -58,8 +58,8 @@ parcours:
     units:
       - id: explorer
         title: Explorer et préparer
-        intro: "Avant tout modèle, regarder les données : distributions, valeurs manquantes, anomalies."
-        lessons: [pandas, duckdb]
+        intro: "Avant tout modèle, regarder les données dans un notebook : distributions, valeurs manquantes, anomalies."
+        lessons: [jupyter, pandas, duckdb]
       - id: familles
         title: Les familles d'apprentissage
         intro: "Choisir une méthode commence par savoir si l'on dispose d'exemples déjà étiquetés."
@@ -314,7 +314,7 @@ parcours:
         title: Machine learning
         intro: "Les familles d'apprentissage, les bibliothèques, puis l'industrialisation."
         lessons:
-          [apprentissage-supervise, apprentissage-non-supervise, pandas, scikit-learn, xgboost, deep-learning, pytorch, tensorflow, transformer, llm, hugging-face, mlflow, aws-sagemaker, vertex-ai, ray]
+          [apprentissage-supervise, apprentissage-non-supervise, jupyter, pandas, scikit-learn, xgboost, deep-learning, pytorch, tensorflow, transformer, llm, hugging-face, mlflow, aws-sagemaker, vertex-ai, ray]
         themes: [machine-learning]
         scenarios: [prediction-resiliation]
 

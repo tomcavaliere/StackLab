@@ -18,6 +18,7 @@ stack:
   - step: Explorer et préparer
     intro: "Avant tout modèle, on regarde les données : distributions, valeurs manquantes, anomalies. La qualité du modèle dépend de celle de cette étape."
     techs:
+      - { tech: jupyter, essential: true, why: "Le notebook où l'on explore, cellule par cellule, avant d'écrire le moindre modèle." }
       - { tech: pandas, essential: true, why: "Charge, nettoie et agrège des tableaux de données en Python." }
       - { tech: duckdb, why: "Requêtes SQL rapides sur de gros fichiers, directement depuis un notebook." }
   - step: Comprendre les familles d'apprentissage
