@@ -45,9 +45,9 @@ parcours:
         intro: "Préparer des tables propres et documentées, en Python ou en SQL versionné."
         lessons: [pandas, dbt]
       - id: visualiser
-        title: Visualiser et partager
-        intro: "Mettre les indicateurs sous les yeux de ceux qui décident."
-        lessons: [grafana]
+        title: Décrire, visualiser et partager
+        intro: "Résumer honnêtement une variable (moyenne ou médiane, dispersion), puis mettre les indicateurs sous les yeux de ceux qui décident."
+        lessons: [statistiques-descriptives, grafana]
 
   - id: data-scientist
     kind: metier
@@ -59,7 +59,7 @@ parcours:
       - id: explorer
         title: Explorer et préparer
         intro: "Avant tout modèle, regarder les données dans un notebook : distributions, valeurs manquantes, anomalies."
-        lessons: [jupyter, pandas, duckdb]
+        lessons: [jupyter, pandas, duckdb, statistiques-descriptives]
       - id: familles
         title: Les familles d'apprentissage
         intro: "Choisir une méthode commence par savoir si l'on dispose d'exemples déjà étiquetés."
@@ -98,6 +98,35 @@ parcours:
         intro: "Planifier les tâches, gérer leurs dépendances et leurs reprises, puis assembler une plateforme complète."
         lessons: [airflow, dagster]
         scenarios: [plateforme-data-analytique]
+
+  - id: statisticien
+    kind: metier
+    role: statisticien
+    title: Statisticien
+    intro: "Tirer des conclusions fiables de données incomplètes : décrire, tester, modéliser, et dire avec quelle incertitude."
+    requires: [tronc-commun]
+    units:
+      - id: langage
+        title: Le langage R
+        intro: "Le langage pensé pour la statistique : vecteurs, valeurs manquantes, tests et modèles intégrés."
+        lessons: [r]
+      - id: preparer
+        title: Préparer les données
+        intro: "Ranger les données (une ligne par observation, une colonne par variable) avec la grammaire du tidyverse."
+        lessons: [tidyverse]
+      - id: decrire
+        title: Décrire et visualiser
+        intro: "Avant tout test : position, dispersion, forme de la distribution, puis les graphiques qui les montrent."
+        lessons: [statistiques-descriptives, ggplot2]
+      - id: tester
+        title: Tester et expérimenter
+        intro: "Distinguer un vrai effet du hasard, puis concevoir des expériences qui permettent de conclure sur une cause."
+        lessons: [tests-statistiques, ab-test]
+      - id: modeliser
+        title: Modéliser
+        intro: "Mesurer l'effet de plusieurs facteurs à la fois, puis départager les méthodes dans le quiz du thème."
+        lessons: [regression]
+        themes: [statistiques]
 
   - id: devops-sre
     kind: metier
@@ -237,7 +266,7 @@ parcours:
       - id: langages
         title: Langages
         intro: "Ce dans quoi on écrit le code. Chaque framework et chaque outil s'appuie sur l'un d'eux."
-        lessons: [typescript, java, go, php, ruby, kotlin, swift, dart, rust]
+        lessons: [typescript, java, go, php, ruby, kotlin, swift, dart, rust, r]
         themes: [langages]
 
   - id: frameworks

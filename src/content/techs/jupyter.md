@@ -2,7 +2,7 @@
 name: Jupyter
 kind: plateforme
 layers: []
-languages: [python]
+languages: [python, r]
 tags: [open-source, data]
 difficulty: 1
 summary: "Notebooks interactifs : un document où se suivent cellules de code, résultats (tableaux, graphiques) et texte, pour explorer des données pas à pas."
