@@ -5,14 +5,16 @@ import { getProgress, loadHistory } from '../lib/progress';
 import { isCorrect, sessionXp, techOfQuiz } from '../lib/rewards';
 import { loadLearning } from '../lib/progress';
 import { REVIEW } from '../lib/review';
+import { allSteps } from '../lib/path';
 
 const progress = await getProgress();
 const history = await loadHistory();
 const { path, reviews } = await loadLearning(history);
-const allSteps = path.units.flatMap((u) => u.steps);
-const stepsDone = allSteps.filter((s) => s.status === 'done').length;
-const unitsDone = path.units.filter((u) => u.status === 'done').length;
-const currentUnit = path.units.find((u) => u.status === 'current');
+// Étapes distinctes : une étape partagée par plusieurs parcours ne compte qu'une fois.
+const distinctSteps = [...new Map(allSteps(path).map((s) => [`${s.kind}:${s.id}`, s.status === 'done'])).values()];
+const stepsDone = distinctSteps.filter(Boolean).length;
+const parcoursDone = path.parcours.filter((p) => p.status === 'done').length;
+const nextParcours = path.next && path.parcours.find((p) => p.id === path.next!.parcours);
 const [themes, scenarios, techs, techQuizzes] = await Promise.all([
   getCollection('quiz'),
   getCollection('scenarios'),
@@ -94,11 +96,11 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
     <a href="/" class={`${card} hover:border-slate-400`}>
       <h2 class="text-lg font-semibold">Parcours</h2>
       <p class="mt-1 text-sm text-slate-600">
-        {stepsDone} / {allSteps.length} étapes · {unitsDone} / {path.units.length} unités terminées
-        {currentUnit && ` · en cours : ${currentUnit.title}`}
+        {stepsDone} / {distinctSteps.length} étapes · {parcoursDone} / {path.parcours.length} parcours terminés
+        {nextParcours && ` · en cours : ${nextParcours.title}`}
       </p>
       <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-        <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * stepsDone) / allSteps.length}%`}></div>
+        <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * stepsDone) / distinctSteps.length}%`}></div>
       </div>
     </a>
     <a href="/revisions" class={`${card} hover:border-slate-400`}>

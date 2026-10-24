@@ -7,7 +7,7 @@ interface Props {
 }
 const { title, wide = false } = Astro.props;
 const path = Astro.url.pathname;
-// Le parcours (accueil) mène aux quiz, scénarios et entreprises au fil des étapes : ils ne sont pas dans la nav.
+// Les parcours (accueil) mènent aux quiz, scénarios et entreprises au fil des étapes : ils ne sont pas dans la nav.
 const nav = [
   ['/', 'Parcours'],
   ['/revisions', 'Révisions'],
@@ -21,7 +21,7 @@ const active = (href: string) =>
   href === '/renforcement'
     ? path.startsWith(href) || reinforce
     : href === '/'
-      ? !reinforce && ['/', '/quiz', '/jouer', '/entreprises', '/verrou'].some((p) => (p === '/' ? path === '/' : path.startsWith(p)))
+      ? !reinforce && ['/', '/parcours', '/quiz', '/jouer', '/entreprises', '/verrou'].some((p) => (p === '/' ? path === '/' : path.startsWith(p)))
       : path.startsWith(href);
 ---
 

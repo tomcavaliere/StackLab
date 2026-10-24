@@ -4,12 +4,13 @@
 import { getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { describeStep, loadLearning } from '../lib/progress';
-import { stepOf, type StepKind } from '../lib/path';
+import { placesOf, stepOf, type StepKind } from '../lib/path';
 
 const kind = Astro.url.searchParams.get('etape') ?? '';
 const id = Astro.url.searchParams.get('id') ?? '';
 const { path } = await loadLearning();
-const next = await describeStep(path.current);
+const next = await describeStep(path.next);
+const titleOf = new Map(path.parcours.map((p) => [p.id, p.title]));
 
 let title = 'Étape verrouillée';
 let message = "Cette étape n'est pas encore ouverte.";
@@ -24,7 +25,7 @@ if (kind === 'company') {
     : message;
 } else {
   const step = stepOf(path, kind as StepKind, id);
-  const unit = path.units.find((u) => u.id === step?.unit);
+  const places = placesOf(path, kind as StepKind, id);
   const name =
     kind === 'lesson'
       ? (await getEntry('techs', id))?.data.name
@@ -35,8 +36,15 @@ if (kind === 'company') {
   if (step && step.status !== 'locked' && !step.viewed) {
     message = 'Lis la fiche avant de faire son quiz.';
     action = { label: `Lire la fiche ${name ?? id}`, href: `/fiches/${id}` };
-  } else if (unit) {
-    message = `Cette étape fait partie de l'unité « ${unit.title} ». Elle s'ouvrira quand le parcours y arrivera : chaque étape validée ouvre la suivante.`;
+  } else if (places.length) {
+    // Les parcours ouverts d'abord : l'étape s'y ouvrira en avançant ; sinon, il faut d'abord ouvrir le parcours.
+    const where = places.map(({ parcours, unit }) => `« ${parcours.title} » (unité « ${unit.title} »)`).join(', ');
+    const { parcours } = places[0];
+    const of = places.length > 1 ? 'des parcours' : 'du parcours';
+    message = parcours.unlocked
+      ? `Cette étape fait partie ${of} ${where}. Elle s'ouvrira quand tu y arriveras : chaque étape validée ouvre la suivante.`
+      : `Cette étape fait partie du parcours « ${parcours.title} » (unité « ${places[0].unit.title} »), qui s'ouvre après ${parcours.waitingFor.map((w) => `« ${titleOf.get(w)} »`).join(', ')}.`;
+    if (parcours.unlocked) action = { label: `Ouvrir le parcours ${parcours.title}`, href: `/parcours/${parcours.id}` };
   }
 }
 ---

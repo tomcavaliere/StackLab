@@ -1,52 +1,41 @@
 ---
-// Accueil = le parcours guidé : révisions du jour, prochaine étape, puis les unités dans l'ordre.
+// Accueil : révisions du jour, prochaine étape du parcours suivi, puis tous les parcours (tronc commun, métiers, compétences).
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { describeStep, loadLearning } from '../lib/progress';
-import { companyOpen, isOpen, type Step } from '../lib/path';
+import { allSteps, companyOpen, isOpen, stepOf, type PathParcours } from '../lib/path';
+import { ROLE_FAMILIES } from '../lib/taxonomy';
 
 const { path, reviews } = await loadLearning();
-const next = await describeStep(path.current);
-const [techs, themes, scenarios, companies] = await Promise.all([
-  getCollection('techs'),
-  getCollection('quiz'),
-  getCollection('scenarios'),
-  getCollection('companies'),
-]);
-const techName = new Map(techs.map((t) => [t.id, t.data.name]));
-const themeTitle = new Map(themes.map((t) => [t.id, t.data.title]));
-const scenarioTitle = new Map(scenarios.map((s) => [s.id, s.data.title]));
-const companyOf = (scenarioId: string) => companies.find((c) => c.data.scenario?.id === scenarioId);
+const next = await describeStep(path.next);
+const [roles, companies] = await Promise.all([getCollection('roles'), getCollection('companies')]);
+const familyOf = new Map(roles.map((r) => [r.id, r.data.family]));
+const titleOf = new Map(path.parcours.map((p) => [p.id, p.title]));
+const nextParcours = path.next && titleOf.get(path.next.parcours);
+const followed = path.parcours.find((p) => p.id === path.followed);
 
-const steps = path.units.flatMap((u) => u.steps);
-const done = steps.filter((s) => s.status === 'done').length;
-const isCurrent = (s: Step) => path.current?.kind === s.kind && path.current.id === s.id;
-const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const tronc = path.parcours.filter((p) => p.kind === 'tronc');
+const families = Object.entries(ROLE_FAMILIES)
+  .map(([family, label]) => ({ label, items: path.parcours.filter((p) => p.kind === 'metier' && familyOf.get(p.role!) === family) }))
+  .filter((f) => f.items.length > 0);
+const competences = path.parcours.filter((p) => p.kind === 'competence');
 
+// Étapes distinctes (une étape partagée par plusieurs parcours ne compte qu'une fois).
+const distinct = new Map(allSteps(path).map((s) => [`${s.kind}:${s.id}`, s]));
 const unlocked = {
-  quiz: steps.filter((s) => s.kind !== 'scenario' && isOpen(s)).length,
-  scenarios: steps.filter((s) => s.kind === 'scenario' && isOpen(s)).length,
+  quiz: [...distinct.values()].filter((s) => s.kind !== 'scenario' && isOpen(stepOf(path, s.kind, s.id))).length,
+  scenarios: [...distinct.values()].filter((s) => s.kind === 'scenario' && isOpen(stepOf(path, s.kind, s.id))).length,
   companies: companies.filter((c) => companyOpen(path, c.data.scenario?.id)).length,
 };
-const icon = { done: '✓', current: '▶', locked: '🔒' };
-const iconStyle = {
-  done: 'bg-emerald-500 text-white',
-  current: 'bg-blue-600 text-white',
-  locked: 'bg-slate-200 text-slate-400 text-xs',
-};
+const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 const link = 'text-blue-700 underline';
+const waiting = (p: PathParcours) => `après ${p.waitingFor.map((id) => titleOf.get(id)).join(', ')}`;
 ---
 
 <Base title="Parcours">
-  <div class="flex flex-wrap items-baseline justify-between gap-x-4">
-    <h1 class="text-2xl font-bold">Parcours</h1>
-    <span class="text-sm text-slate-500">{done} / {steps.length} étapes</span>
-  </div>
-  <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-    <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * done) / steps.length}%`}></div>
-  </div>
+  <h1 class="text-2xl font-bold">Parcours</h1>
 
-  <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+  <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
     {
       reviews.due > 0 ? (
         <a href="/revisions" class="flex flex-col rounded border-2 border-violet-300 bg-violet-50 px-5 py-4 hover:border-violet-500">
@@ -63,73 +52,65 @@ const link = 'text-blue-700 underline';
     {
       next ? (
         <a href={next.href} class="flex flex-col rounded bg-blue-600 px-5 py-4 text-white hover:bg-blue-700">
-          <span class="text-sm opacity-80">Continuer</span>
+          <span class="text-sm opacity-80">Continuer · {nextParcours}</span>
           <span class="text-lg font-semibold">{next.label} →</span>
         </a>
       ) : (
-        <div class="rounded border border-emerald-200 bg-emerald-50 px-5 py-4 font-semibold text-emerald-800">🎉 Parcours terminé : place aux révisions.</div>
+        <div class="rounded border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900">
+          <span class="font-semibold">{followed ? `🎉 Parcours « ${followed.title} » terminé.` : '🎉 Tronc commun terminé.'}</span>
+          <span class="block text-sm">Choisis un parcours ci-dessous et clique sur « Suivre ce parcours ».</span>
+        </div>
       )
     }
   </div>
 
-  <ol class="mt-8 space-y-3">
-    {
-      path.units.map((u, i) => (
-        <li>
-          <details open={u.status === 'current'} class:list={['group rounded border bg-white', u.status === 'current' ? 'border-blue-300' : 'border-slate-200']}>
-            <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
-              <span class:list={['flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-semibold', iconStyle[u.status]]}>
-                {u.status === 'done' ? '✓' : i + 1}
-              </span>
-              <span class:list={['font-semibold', u.status === 'locked' && 'text-slate-400']}>{u.title}</span>
-              <span class="ml-auto text-sm text-slate-500">
-                {u.done} / {u.steps.length}
-              </span>
-              <span class="basis-full pl-11 text-sm text-slate-500">{u.intro}</span>
-            </summary>
-            <ul class="border-t border-slate-100 px-4 py-2">
-              {u.steps.map((s) => {
-                const company = s.kind === 'scenario' ? companyOf(s.id) : undefined;
-                return (
-                  <li class:list={['flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5', isCurrent(s) && 'font-medium']}>
-                    <span class:list={['flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm', iconStyle[s.status]]}>{icon[s.status]}</span>
-                    {s.kind === 'lesson' && (
-                      <>
-                        <span class:list={[s.status === 'locked' && 'text-slate-400']}>{techName.get(s.id)}</span>
-                        <span class="ml-auto flex gap-3 text-sm">
-                          <a href={`/fiches/${s.id}`} class:list={[s.status === 'locked' ? 'text-slate-400 hover:text-blue-700' : link]}>
-                            {s.viewed ? '✓ fiche' : 'fiche'}
-                          </a>
-                          {isOpen(s) ? <a href={`/quiz/techno/${s.id}`} class={link}>quiz</a> : <span class="text-slate-400">quiz</span>}
-                        </span>
-                      </>
-                    )}
-                    {s.kind === 'theme' && (
-                      <>
-                        <span class:list={[s.status === 'locked' && 'text-slate-400']}>Quiz du thème « {themeTitle.get(s.id)} »</span>
-                        {isOpen(s) && <a href={`/quiz/${s.id}`} class={`ml-auto text-sm ${link}`}>jouer</a>}
-                      </>
-                    )}
-                    {s.kind === 'scenario' && (
-                      <>
-                        <span class:list={[s.status === 'locked' && 'text-slate-400']}>Scénario : {scenarioTitle.get(s.id)}</span>
-                        <span class="ml-auto flex gap-3 text-sm">
-                          {isOpen(s) && <a href={`/jouer/${s.id}`} class={link}>jouer</a>}
-                          {company && companyOpen(path, s.id) && (
-                            <a href={`/entreprises/${company.id}`} class="text-violet-700 underline">stack de {company.data.company}</a>
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
+  {
+    [
+      { title: 'Tronc commun', intro: 'Le socle : il ouvre tous les autres parcours.', groups: [{ label: '', items: tronc }] },
+      { title: 'Métiers', intro: 'Les technos essentielles de chaque métier. Plusieurs peuvent se suivre en parallèle.', groups: families },
+      { title: 'Compétences', intro: 'Tout le catalogue, module par module, pour élargir ce que tu sais.', groups: [{ label: '', items: competences }] },
+    ].map((section) => (
+      <section class="mt-8">
+        <h2 class="text-xl font-semibold">{section.title}</h2>
+        <p class="text-sm text-slate-500">{section.intro}</p>
+        {section.groups.map((g) => (
+          <>
+            {g.label && <h3 class="mt-4 text-sm font-semibold tracking-wide text-slate-500 uppercase">{g.label}</h3>}
+            <ul class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {g.items.map((p) => (
+                <li>
+                  <a
+                    href={`/parcours/${p.id}`}
+                    class:list={[
+                      'flex h-full flex-col gap-1 rounded border bg-white px-4 py-3 hover:border-slate-400',
+                      p.id === path.followed ? 'border-blue-400' : 'border-slate-200',
+                      !p.unlocked && 'opacity-60',
+                    ]}
+                  >
+                    <span class="flex flex-wrap items-baseline gap-x-2">
+                      <span class="font-semibold">
+                        {p.status === 'done' ? '✓ ' : !p.unlocked && '🔒 '}
+                        {p.title}
+                      </span>
+                      {p.id === path.followed && <span class="text-xs font-medium text-blue-700">★ suivi</span>}
+                      <span class="ml-auto text-sm text-slate-500">
+                        {p.done} / {p.total}
+                      </span>
+                    </span>
+                    <span class="text-sm text-slate-600">{p.intro}</span>
+                    {!p.unlocked && <span class="text-xs text-slate-500">S'ouvre {waiting(p)}</span>}
+                    <span class="mt-auto block h-1.5 overflow-hidden rounded-full bg-slate-200">
+                      <span class="block h-full rounded-full bg-emerald-500" style={`width: ${(100 * p.done) / p.total}%`} />
+                    </span>
+                  </a>
+                </li>
+              ))}
             </ul>
-          </details>
-        </li>
-      ))
-    }
-  </ol>
+          </>
+        ))}
+      </section>
+    ))
+  }
 
   <p class="mt-8 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
     <span>Débloqués :</span>

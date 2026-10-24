@@ -37,6 +37,13 @@ export const ROLE_FAMILIES = {
   infra: 'Infra & exploitation',
 } as const;
 
+// Types de parcours : le tronc commun ouvre les métiers et les compétences (src/content/parcours/parcours.md).
+export const PARCOURS_KINDS = {
+  tronc: 'Tronc commun',
+  metier: 'Métiers',
+  competence: 'Compétences',
+} as const;
+
 export const LAYERS = {
   frontend: 'Frontend',
   mobile: 'Mobile',

@@ -1,4 +1,5 @@
-// Parcours guidé : fonction pure, testée avec Vitest. Un seul chemin, chaque étape validée ouvre la suivante.
+// Parcours : fonction pure, testée avec Vitest. Plusieurs parcours (tronc commun, métiers, compétences), chacun un chemin
+// où chaque étape validée ouvre la suivante ; un parcours s'ouvre quand ses parcours requis sont terminés.
 // Tout est recalculé depuis l'historique brut ; les règles sont décrites dans CLAUDE.md, section « Parcours ».
 import { isCorrect, techQuizId, type History } from './rewards';
 
@@ -15,12 +16,26 @@ export interface Unit {
   scenarios: string[];
 }
 
+export type ParcoursKind = 'tronc' | 'metier' | 'competence';
+
+/** Un parcours de src/content/parcours/parcours.md, avec des ids en clair. */
+export interface Parcours {
+  id: string;
+  kind: ParcoursKind;
+  title: string;
+  intro: string;
+  role?: string; // métier : id de la fiche métier
+  requires: string[]; // parcours à terminer avant d'ouvrir celui-ci
+  units: Unit[];
+}
+
 export type StepKind = 'lesson' | 'theme' | 'scenario';
 export type Status = 'done' | 'current' | 'locked';
 
 export interface Step {
   kind: StepKind;
   id: string;
+  parcours: string;
   unit: string;
   status: Status;
   viewed: boolean; // leçon : fiche consultée (toujours true pour les autres étapes)
@@ -32,16 +47,27 @@ export interface PathUnit extends Omit<Unit, 'lessons' | 'themes' | 'scenarios'>
   status: Status; // done : toutes ses étapes faites ; current : contient l'étape en cours
 }
 
-export interface Path {
+export interface PathParcours extends Omit<Parcours, 'units'> {
   units: PathUnit[];
-  current: Step | null; // null : parcours terminé
+  unlocked: boolean; // tous ses parcours requis (directement ou non) sont terminés
+  waitingFor: string[]; // parcours requis pas encore terminés, les plus proches seulement (pas ceux qu'ils requièrent eux-mêmes)
+  current: Step | null; // null : terminé, ou pas encore ouvert
+  done: number;
+  total: number;
+  status: Status;
+}
+
+export interface Path {
+  parcours: PathParcours[];
+  followed: string | null; // parcours suivi, tel qu'enregistré
+  next: Step | null; // prochaine étape du parcours suivi (ou de ce qu'il attend) ; null : rien à proposer
 }
 
 /** Session de quiz qui valide une étape : assez de réponses, et au moins PASS.ratio de bonnes. */
 export const passes = (answers: { chosenTech: string; correctTech: string }[]) =>
   answers.length >= PASS.minAnswers && answers.filter(isCorrect).length >= PASS.ratio * answers.length;
 
-export function computePath(units: Unit[], history: History): Path {
+export function computePath(parcours: Parcours[], history: History, followed: string | null = null): Path {
   const viewed = new Set(history.viewedTechs);
   const passedQuizzes = new Set(history.quizSessions.filter((s) => passes(s.answers)).map((s) => s.themeId));
   const passedScenarios = new Set(history.attempts.filter((a) => a.score >= PASS.scenario).map((a) => a.scenarioId));
@@ -52,30 +78,87 @@ export function computePath(units: Unit[], history: History): Path {
         ? passedQuizzes.has(id)
         : passedScenarios.has(id);
 
-  let current: Step | null = null;
-  const out = units.map((u) => {
-    const refs: [StepKind, string][] = [
-      ...u.lessons.map((id) => ['lesson', id] as [StepKind, string]),
-      ...u.themes.map((id) => ['theme', id] as [StepKind, string]),
-      ...u.scenarios.map((id) => ['scenario', id] as [StepKind, string]),
-    ];
-    const steps = refs.map(([kind, id]): Step => {
-      const step: Step = { kind, id, unit: u.id, status: 'locked', viewed: kind !== 'lesson' || viewed.has(id) };
-      if (isDone(kind, id)) step.status = 'done';
-      else if (!current) current = Object.assign(step, { status: 'current' as const });
-      return step;
+  // Une étape faite l'est partout : on calcule d'abord ce qui est fait, puis quels parcours sont ouverts.
+  const built = parcours.map((p) =>
+    p.units.map((u) => {
+      const refs: [StepKind, string][] = [
+        ...u.lessons.map((id) => ['lesson', id] as [StepKind, string]),
+        ...u.themes.map((id) => ['theme', id] as [StepKind, string]),
+        ...u.scenarios.map((id) => ['scenario', id] as [StepKind, string]),
+      ];
+      return refs.map(
+        ([kind, id]): Step => ({
+          kind,
+          id,
+          parcours: p.id,
+          unit: u.id,
+          status: isDone(kind, id) ? 'done' : 'locked',
+          viewed: kind !== 'lesson' || viewed.has(id),
+        }),
+      );
+    }),
+  );
+  const finished = new Map(parcours.map((p, i) => [p.id, built[i].flat().every((s) => s.status === 'done')]));
+  const byId = new Map(parcours.map((p) => [p.id, p]));
+  const ancestors = (p: Parcours) => {
+    const out: string[] = [];
+    const todo = [...p.requires];
+    while (todo.length) {
+      const r = todo.shift()!;
+      if (out.includes(r) || !byId.has(r)) continue;
+      out.push(r);
+      todo.push(...byId.get(r)!.requires);
+    }
+    return out;
+  };
+
+  const blocking = new Map<string, string[]>(); // parcours -> tous ses parcours requis non terminés
+  const out = parcours.map((p, i): PathParcours => {
+    const unfinished = ancestors(p).filter((a) => !finished.get(a));
+    blocking.set(p.id, unfinished);
+    const waitingFor = unfinished.filter((a) => !unfinished.some((b) => b !== a && ancestors(byId.get(b)!).includes(a)));
+    const unlocked = unfinished.length === 0;
+    let current: Step | null = null;
+    const units = p.units.map((u, k): PathUnit => {
+      const steps = built[i][k];
+      if (unlocked && !current) {
+        const first = steps.find((s) => s.status !== 'done');
+        if (first) current = Object.assign(first, { status: 'current' as const });
+      }
+      const done = steps.filter((s) => s.status === 'done').length;
+      const status: Status = done === steps.length ? 'done' : steps.some((s) => s.status === 'current') ? 'current' : 'locked';
+      const { lessons: _l, themes: _t, scenarios: _s, ...rest } = u;
+      return { ...rest, steps, done, status };
     });
-    const done = steps.filter((s) => s.status === 'done').length;
-    const status: Status = done === steps.length ? 'done' : steps.some((s) => s.status === 'current') ? 'current' : 'locked';
-    const { lessons: _l, themes: _t, scenarios: _s, ...rest } = u;
-    return { ...rest, steps, done, status };
+    const done = units.reduce((n, u) => n + u.done, 0);
+    const total = units.reduce((n, u) => n + u.steps.length, 0);
+    const { units: _u, ...rest } = p;
+    return { ...rest, units, unlocked, waitingFor, current, done, total, status: done === total ? 'done' : unlocked ? 'current' : 'locked' };
   });
-  return { units: out, current };
+
+  // Prochaine étape : celle du parcours suivi (le tronc commun par défaut) ; s'il est fermé, celle du parcours qu'il attend.
+  const target = out.find((p) => p.id === followed) ?? out.find((p) => p.kind === 'tronc');
+  const opener = target && !target.unlocked ? out.find((p) => blocking.get(target.id)!.includes(p.id) && p.unlocked) : target;
+  return { parcours: out, followed, next: opener?.current ?? null };
 }
 
-/** L'étape d'une fiche, d'un thème ou d'un scénario ; undefined si elle n'est pas dans le parcours. */
+/** Toutes les étapes, parcours par parcours (une étape partagée apparaît une fois par parcours). */
+export const allSteps = (path: Path) => path.parcours.flatMap((p) => p.units.flatMap((u) => u.steps));
+
+const RANK: Record<Status, number> = { locked: 0, current: 1, done: 2 };
+
+/** L'étape d'une fiche, d'un thème ou d'un scénario, fusionnée sur tous les parcours qui la contiennent :
+ *  faite si elle l'est, en cours si elle l'est dans au moins un parcours. undefined : dans aucun parcours. */
 export const stepOf = (path: Path, kind: StepKind, id: string) =>
-  path.units.flatMap((u) => u.steps).find((s) => s.kind === kind && s.id === id);
+  allSteps(path)
+    .filter((s) => s.kind === kind && s.id === id)
+    .reduce<Step | undefined>((best, s) => (!best || RANK[s.status] > RANK[best.status] ? s : best), undefined);
+
+/** Où se trouve une étape : chaque parcours et unité qui la contient, les parcours ouverts d'abord. */
+export const placesOf = (path: Path, kind: StepKind, id: string) =>
+  path.parcours
+    .flatMap((p) => p.units.filter((u) => u.steps.some((s) => s.kind === kind && s.id === id)).map((unit) => ({ parcours: p, unit })))
+    .sort((a, b) => Number(b.parcours.unlocked) - Number(a.parcours.unlocked));
 
 /** Étape ouverte : faite (on peut la rejouer) ou en cours. Le quiz d'une leçon demande en plus d'avoir lu la fiche. */
 export const isOpen = (step: Step | undefined) =>
@@ -85,9 +168,11 @@ export const isOpen = (step: Step | undefined) =>
 export const companyOpen = (path: Path, scenarioId: string | undefined) =>
   !scenarioId || stepOf(path, 'scenario', scenarioId)?.status === 'done';
 
-/** Quiz (ids de session) des étapes faites : ce sont eux qui alimentent les révisions. */
-export const doneQuizzes = (path: Path) =>
-  path.units
-    .flatMap((u) => u.steps)
-    .filter((s) => s.status === 'done' && s.kind !== 'scenario')
-    .map((s) => (s.kind === 'lesson' ? techQuizId(s.id) : s.id));
+/** Quiz (ids de session) des étapes faites, sans doublon : ce sont eux qui alimentent les révisions. */
+export const doneQuizzes = (path: Path) => [
+  ...new Set(
+    allSteps(path)
+      .filter((s) => s.status === 'done' && s.kind !== 'scenario')
+      .map((s) => (s.kind === 'lesson' ? techQuizId(s.id) : s.id)),
+  ),
+];

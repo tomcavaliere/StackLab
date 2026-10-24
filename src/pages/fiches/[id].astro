@@ -5,7 +5,7 @@ import LayerBadges from '../../components/LayerBadges.astro';
 import { CONFIDENCES, DIFFICULTIES, KINDS, LAYERS, type Layer } from '../../lib/taxonomy';
 import { getDb } from '../../lib/db';
 import { loadLearning } from '../../lib/progress';
-import { stepOf } from '../../lib/path';
+import { placesOf, stepOf } from '../../lib/path';
 import Atelier from '../../components/atelier/Atelier';
 import { RUNNABLE, type Lang } from '../../components/atelier/run';
 
@@ -17,7 +17,7 @@ await (await getDb()).execute({ sql: 'INSERT INTO tech_views (tech_id) VALUES (?
 const { path } = await loadLearning();
 const step = stepOf(path, 'lesson', tech.id);
 const quizOpen = step && step.status !== 'locked';
-const unit = path.units.find((u) => u.id === step?.unit);
+const place = placesOf(path, 'lesson', tech.id)[0];
 const all = await getCollection('techs');
 const byId = new Map(all.map((t) => [t.id, t]));
 const companies = await getCollection('companies');
@@ -82,9 +82,9 @@ const link = 'text-blue-700 underline';
         )
       }
       {
-        quiz && !quizOpen && unit && (
+        quiz && !quizOpen && place && (
           <span class="ml-auto self-center rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-500">
-            🔒 Quiz ouvert quand le parcours arrive ici (unité « {unit.title} »)
+            🔒 Quiz ouvert quand le parcours arrive ici ({place.parcours.title}, unité « {place.unit.title} »)
           </span>
         )
       }

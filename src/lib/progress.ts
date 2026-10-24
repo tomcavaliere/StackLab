@@ -1,7 +1,7 @@
 // Progression lue en base (côté serveur) : historique brut -> computeProgress, puis persistance des badges débloqués.
 import { getCollection, getEntry } from 'astro:content';
 import { getDb } from './db';
-import { computePath, doneQuizzes, type Path, type Step, type Unit } from './path';
+import { computePath, doneQuizzes, type Parcours, type Path, type Step } from './path';
 import { dueReviews, reviewStates, type ReviewState, type Reviews } from './review';
 import { BADGES, computeProgress, techQuizId, type History, type Progress, type QuizSession } from './rewards';
 
@@ -41,15 +41,26 @@ export async function loadHistory(): Promise<History> {
   };
 }
 
-/** Les unités du parcours, avec des ids en clair. */
-export async function loadUnits(): Promise<Unit[]> {
-  const [parcours] = await getCollection('parcours');
-  return parcours.data.units.map((u) => ({
-    ...u,
-    lessons: u.lessons.map((l) => l.id),
-    themes: u.themes.map((t) => t.id),
-    scenarios: u.scenarios.map((s) => s.id),
+/** Les parcours, dans l'ordre du fichier, avec des ids en clair. */
+export async function loadParcours(): Promise<Parcours[]> {
+  const [file] = await getCollection('parcours');
+  return file.data.parcours.map((p) => ({
+    ...p,
+    role: p.role?.id,
+    units: p.units.map((u) => ({
+      ...u,
+      lessons: u.lessons.map((l) => l.id),
+      themes: u.themes.map((t) => t.id),
+      scenarios: u.scenarios.map((s) => s.id),
+    })),
   }));
+}
+
+/** Le parcours suivi (table settings), null s'il n'a jamais été choisi. */
+export async function loadFollowed(): Promise<string | null> {
+  const db = await getDb();
+  const row = (await db.execute("SELECT value FROM settings WHERE key = 'parcours'")).rows[0] as unknown as { value: string } | undefined;
+  return row?.value ?? null;
 }
 
 /** Tous les quiz (thèmes et technos) avec leurs questions actuelles, par id de session (« tech:<id> » pour une techno). */
@@ -61,13 +72,13 @@ export async function loadQuizzes() {
   ];
 }
 
-/** Parcours et révisions du moment ; states : état de révision de chaque question déjà vue (renforcement). */
+/** Parcours (et parcours suivi) et révisions du moment ; states : état de révision de chaque question déjà vue (renforcement). */
 export async function loadLearning(
   history?: History,
 ): Promise<{ history: History; path: Path; reviews: Reviews; states: Map<string, ReviewState> }> {
   history ??= await loadHistory();
-  const [units, quizzes] = await Promise.all([loadUnits(), loadQuizzes()]);
-  const path = computePath(units, history);
+  const [parcours, quizzes, followed] = await Promise.all([loadParcours(), loadQuizzes(), loadFollowed()]);
+  const path = computePath(parcours, history, followed);
   const done = new Set(doneQuizzes(path));
   const states = reviewStates(history.quizSessions);
   const reviews = dueReviews(states, quizzes.filter((q) => done.has(q.id)), new Date());
@@ -95,7 +106,7 @@ export interface ProgressView extends Omit<Progress, 'unlocked'> {
   badges: { id: string; icon: string; label: string; description: string; unlockedAt: string | null }[];
   newBadges: string[]; // ids débloqués par cet appel
   reviewsDue: number; // questions déjà vues arrivées à échéance
-  next: { label: string; href: string } | null; // prochaine étape du parcours
+  next: { label: string; href: string } | null; // prochaine étape du parcours suivi
 }
 
 /** Progression actuelle. Enregistre au passage les badges dont la condition vient d'être remplie. */
@@ -127,6 +138,6 @@ export async function getProgress(): Promise<ProgressView> {
     badges: BADGES.map(({ test: _, ...b }) => ({ ...b, unlockedAt: dates.get(b.id) ?? null })),
     newBadges,
     reviewsDue: reviews.due,
-    next: await describeStep(path.current),
+    next: await describeStep(path.next),
   };
 }

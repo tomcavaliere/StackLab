@@ -4,11 +4,11 @@ import Base from '../../layouts/Base.astro';
 import { SESSION_SIZE } from '../../lib/rewards';
 import { KINDS } from '../../lib/taxonomy';
 import { loadLearning } from '../../lib/progress';
-import { isOpen, stepOf } from '../../lib/path';
+import { allSteps, isOpen, stepOf } from '../../lib/path';
 
-// Ordre du parcours ; un quiz verrouillé reste listé, grisé (sa page explique comment l'ouvrir).
+// Ordre des parcours ; un quiz verrouillé reste listé, grisé (sa page explique comment l'ouvrir).
 const { path } = await loadLearning();
-const order = path.units.flatMap((u) => u.steps.map((s) => s.id));
+const order = allSteps(path).map((s) => s.id);
 const themes = (await getCollection('quiz')).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 const locked = (kind: 'lesson' | 'theme', id: string) => !isOpen(stepOf(path, kind, id));
 const techs = await getCollection('techs');

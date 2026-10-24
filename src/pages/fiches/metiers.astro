@@ -4,9 +4,11 @@ import Base from '../../layouts/Base.astro';
 import FichesTabs from '../../components/FichesTabs.astro';
 import Roles, { type Role } from '../../components/roles/Roles';
 import { KINDS, ROLE_FAMILIES } from '../../lib/taxonomy';
+import { loadParcours } from '../../lib/progress';
 
 const techs = await getCollection('techs');
 const familyOrder = Object.keys(ROLE_FAMILIES);
+const parcoursOf = new Map((await loadParcours()).filter((p) => p.role).map((p) => [p.role!, p.id]));
 
 const roles: Role[] = (await getCollection('roles'))
   .sort(
@@ -25,6 +27,7 @@ const roles: Role[] = (await getCollection('roles'))
       intro: s.intro,
       techs: s.techs.map((t) => ({ id: t.tech.id, why: t.why, essential: t.essential })),
     })),
+    parcours: parcoursOf.get(r.id),
   }));
 
 const info = Object.fromEntries(techs.map((t) => [t.id, { name: t.data.name, kind: KINDS[t.data.kind] }]));

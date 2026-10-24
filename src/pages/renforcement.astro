@@ -17,12 +17,16 @@ const quizById = new Map(quizzes.map((q) => [q.id, q]));
 const techName = new Map(techs.map((t) => [t.id, t.data.name]));
 const themeTitle = new Map(themes.map((t) => [t.id, t.data.title]));
 
-const units = path.units
-  .map((u) => ({
-    title: u.title,
-    rows: u.steps
-      .filter((s) => s.status === 'done' && s.kind !== 'scenario')
+// Par parcours ; un quiz partagé par plusieurs parcours n'apparaît que dans le premier.
+const listed = new Set<string>();
+const units = path.parcours
+  .map((p) => ({
+    title: p.title,
+    rows: p.units
+      .flatMap((u) => u.steps)
+      .filter((s) => s.status === 'done' && s.kind !== 'scenario' && !listed.has(`${s.kind}:${s.id}`))
       .map((s) => {
+        listed.add(`${s.kind}:${s.id}`);
         const quiz = quizById.get(s.kind === 'lesson' ? techQuizId(s.id) : s.id)!;
         const left = unseen(states, quiz).length;
         return {

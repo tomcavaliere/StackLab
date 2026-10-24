@@ -2,12 +2,12 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
-import { CONFIDENCES, KINDS, LAYERS, ROLE_FAMILIES, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids, type Layer } from './lib/taxonomy';
+import { CONFIDENCES, KINDS, LAYERS, PARCOURS_KINDS, ROLE_FAMILIES, SCENARIO_TYPES, SOURCE_TYPES, VERDICTS, ids, type Layer } from './lib/taxonomy';
 
 // reference() d'Astro 7 ne vérifie pas que l'id existe : il le transforme seulement en { id, collection }.
 // ref() ajoute ce contrôle, si bien qu'un id sans fichier correspondant fait échouer le build.
 // L'id d'une entrée est le nom de son fichier (kebab-case, sans extension).
-const ref = (collection: 'techs' | 'scenarios' | 'quiz') =>
+const ref = (collection: 'techs' | 'scenarios' | 'quiz' | 'roles') =>
   z
     .string()
     .refine((id) => existsSync(`src/content/${collection}/${id}.md`), {
@@ -216,8 +216,9 @@ const techQuiz = defineCollection({
     }),
 });
 
-// Le parcours guidé : un seul fichier (src/content/parcours/parcours.md), pour que les contrôles voient tout le chemin.
-// Chaque unité enchaîne ses leçons (fiche + quiz de la fiche), ses thèmes, puis ses scénarios. Règles : CLAUDE.md, « Parcours ».
+// Les parcours : un seul fichier (src/content/parcours/parcours.md), pour que les contrôles voient tous les parcours à la fois.
+// Un parcours s'ouvre quand ses `requires` sont terminés ; chaque unité enchaîne ses leçons (fiche + quiz de la fiche),
+// ses thèmes, puis ses scénarios. Règles : CLAUDE.md, « Parcours ».
 const mdIds = (dir: string) =>
   readdirSync(dir)
     .filter((f) => f.endsWith('.md'))
@@ -225,56 +226,129 @@ const mdIds = (dir: string) =>
 // Technos citées par un thème (answer et decoy), lues dans le fichier brut : Zod ne voit pas les autres collections.
 const themeTechs = (id: string) =>
   [...readFileSync(`src/content/quiz/${id}.md`, 'utf8').matchAll(/^\s+(?:answer|decoy):\s*(\S+)/gm)].map((m) => m[1]);
+// Technos `essential: true` d'un métier, lues de la même façon (une techno par ligne).
+const essentialTechs = (role: string) =>
+  readFileSync(`src/content/roles/${role}.md`, 'utf8')
+    .split('\n')
+    .filter((l) => /essential:\s*true/.test(l))
+    .map((l) => l.match(/tech:\s*([a-z0-9-]+)/)?.[1])
+    .filter((t): t is string => !!t);
+
+const kebab = (what: string) => z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: `id ${what} en kebab-case ASCII minuscule` });
 
 const parcours = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/parcours' }),
   schema: z
     .strictObject({
-      units: z
+      parcours: z
         .array(
           z.strictObject({
-            id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, { error: "id d'unité en kebab-case ASCII minuscule" }),
+            id: kebab('de parcours'),
+            kind: z.enum(ids(PARCOURS_KINDS)),
             title: z.string(),
             intro: z.string(),
-            lessons: z.array(ref('techs')).min(1),
-            themes: z.array(ref('quiz')).default([]),
-            scenarios: z.array(ref('scenarios')).default([]),
+            role: ref('roles').optional(), // métier : la pile décrite dans src/content/roles
+            requires: z.array(kebab('de parcours')).default([]), // parcours à terminer avant d'ouvrir celui-ci
+            units: z
+              .array(
+                z.strictObject({
+                  id: kebab("d'unité"),
+                  title: z.string(),
+                  intro: z.string(),
+                  lessons: z.array(ref('techs')).min(1),
+                  themes: z.array(ref('quiz')).default([]),
+                  scenarios: z.array(ref('scenarios')).default([]),
+                }),
+              )
+              .min(1),
           }),
         )
         .min(1),
     })
     .superRefine((p, ctx) => {
-      const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path: ['units', ...path], message });
-      const units = new Set<string>();
-      const lessons = new Map<string, string>(); // tech -> unité
-      const themes = new Set<string>();
-      const scenarios = new Set<string>();
-      p.units.forEach((u, i) => {
-        if (units.has(u.id)) issue([i, 'id'], `unité "${u.id}" en double`);
-        units.add(u.id);
-        u.lessons.forEach(({ id }, j) => {
-          if (lessons.has(id)) issue([i, 'lessons', j], `"${id}" figure deux fois dans le parcours (déjà dans l'unité "${lessons.get(id)}")`);
-          if (!existsSync(`src/content/tech-quiz/${id}.md`)) issue([i, 'lessons', j], `"${id}" n'a pas de quiz (src/content/tech-quiz/${id}.md)`);
-          lessons.set(id, u.id);
-        });
-        u.themes.forEach(({ id }, j) => {
-          if (themes.has(id)) issue([i, 'themes', j], `thème "${id}" en double`);
-          themes.add(id);
-          const later = [...new Set(themeTechs(id))].filter((t) => !lessons.has(t));
-          if (later.length) issue([i, 'themes', j], `le thème "${id}" cite ${later.join(', ')}, pas encore vu(s) à cette unité du parcours`);
-        });
-        u.scenarios.forEach(({ id }, j) => {
-          if (scenarios.has(id)) issue([i, 'scenarios', j], `scénario "${id}" en double`);
-          scenarios.add(id);
-        });
+      const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path: ['parcours', ...path], message });
+      const index = new Map<string, number>();
+      p.parcours.forEach((c, i) => {
+        if (index.has(c.id)) issue([i, 'id'], `parcours "${c.id}" en double`);
+        else index.set(c.id, i);
       });
-      const missing = (dir: string, seen: Set<string> | Map<string, string>) => mdIds(dir).filter((id) => !seen.has(id));
+      if (p.parcours.filter((c) => c.kind === 'tronc').length !== 1) issue([], 'il faut exactement un parcours "kind: tronc"');
+
+      // Parcours requis, directement ou non ; cycles signalés.
+      const ancestors = (i: number) => {
+        const out = new Set<string>();
+        const todo = [...p.parcours[i].requires];
+        while (todo.length) {
+          const r = todo.pop()!;
+          if (r === p.parcours[i].id) {
+            issue([i, 'requires'], `cycle : "${r}" se requiert lui-même`);
+            break;
+          }
+          if (out.has(r) || !index.has(r)) continue;
+          out.add(r);
+          todo.push(...p.parcours[index.get(r)!].requires);
+        }
+        return out;
+      };
+
+      const allLessons = new Set<string>();
+      const allThemes = new Set<string>();
+      const allScenarios = new Set<string>();
+      p.parcours.forEach((c, i) => {
+        if (c.kind === 'metier' && !c.role) issue([i, 'role'], 'role obligatoire pour un parcours métier');
+        if (c.kind !== 'metier' && c.role) issue([i, 'role'], 'role réservé aux parcours métier');
+        c.requires.forEach((r, j) => {
+          if (!index.has(r)) issue([i, 'requires', j], `parcours "${r}" inconnu`);
+        });
+
+        // Ce qui est vu avant ce parcours : les leçons, thèmes et scénarios de ses parcours requis.
+        const lessons = new Map<string, string>(); // tech -> "parcours / unité"
+        const themes = new Set<string>();
+        const scenarios = new Set<string>();
+        for (const a of ancestors(i)) {
+          for (const u of p.parcours[index.get(a)!].units) {
+            u.lessons.forEach((l) => lessons.set(l.id, `${a} / ${u.id}`));
+            u.themes.forEach((t) => themes.add(t.id));
+            u.scenarios.forEach((s) => scenarios.add(s.id));
+          }
+        }
+        const units = new Set<string>();
+        c.units.forEach((u, k) => {
+          const at = (...rest: (string | number)[]) => [i, 'units', k, ...rest];
+          if (units.has(u.id)) issue(at('id'), `unité "${u.id}" en double`);
+          units.add(u.id);
+          u.lessons.forEach(({ id }, j) => {
+            if (lessons.has(id)) issue(at('lessons', j), `"${id}" figure deux fois dans ce parcours ou ses parcours requis (déjà dans "${lessons.get(id)}")`);
+            if (!existsSync(`src/content/tech-quiz/${id}.md`)) issue(at('lessons', j), `"${id}" n'a pas de quiz (src/content/tech-quiz/${id}.md)`);
+            lessons.set(id, `${c.id} / ${u.id}`);
+            allLessons.add(id);
+          });
+          u.themes.forEach(({ id }, j) => {
+            if (themes.has(id)) issue(at('themes', j), `thème "${id}" en double dans ce parcours ou ses parcours requis`);
+            themes.add(id);
+            allThemes.add(id);
+            const later = [...new Set(themeTechs(id))].filter((t) => !lessons.has(t));
+            if (later.length) issue(at('themes', j), `le thème "${id}" cite ${later.join(', ')}, pas encore vu(s) à cette unité (ni dans les parcours requis)`);
+          });
+          u.scenarios.forEach(({ id }, j) => {
+            if (scenarios.has(id)) issue(at('scenarios', j), `scénario "${id}" en double dans ce parcours ou ses parcours requis`);
+            scenarios.add(id);
+            allScenarios.add(id);
+          });
+        });
+        if (c.role) {
+          const absent = essentialTechs(c.role.id).filter((t) => !lessons.has(t));
+          if (absent.length) issue([i, 'role'], `technos essentielles du métier "${c.role.id}" absentes du parcours et de ses parcours requis : ${absent.join(', ')}`);
+        }
+      });
+
+      const missing = (dir: string, seen: Set<string>) => mdIds(dir).filter((id) => !seen.has(id));
       const absent = [
-        ['fiche(s)', missing('src/content/techs', lessons)],
-        ['thème(s)', missing('src/content/quiz', themes)],
-        ['scénario(s)', missing('src/content/scenarios', scenarios)],
+        ['fiche(s)', missing('src/content/techs', allLessons)],
+        ['thème(s)', missing('src/content/quiz', allThemes)],
+        ['scénario(s)', missing('src/content/scenarios', allScenarios)],
       ] as const;
-      for (const [what, ids] of absent) if (ids.length) issue([], `${what} absent(s) du parcours : ${ids.join(', ')}`);
+      for (const [what, list] of absent) if (list.length) issue([], `${what} dans aucun parcours : ${list.join(', ')}`);
     }),
 });
 

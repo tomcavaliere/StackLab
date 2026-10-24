@@ -18,6 +18,7 @@ export interface Role {
   summary: string;
   mission: string;
   steps: RoleStep[];
+  parcours?: string; // id du parcours métier, s'il existe
 }
 export interface TechInfo {
   name: string;
@@ -212,6 +213,11 @@ function Detail({ role, all, techs, onCompare }: { role: Indexed; all: Indexed[]
           {plural(total, 'techno')} · {essential} à maîtriser d’abord · {usedElsewhere} partagée{usedElsewhere > 1 ? 's' : ''} avec d’autres métiers,{' '}
           {total - usedElsewhere} propre{total - usedElsewhere > 1 ? 's' : ''} à celui-ci
         </p>
+        {role.parcours && (
+          <a href={`/parcours/${role.parcours}`} className="mt-3 inline-block rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+            Le parcours {role.name} →
+          </a>
+        )}
       </header>
 
       <ol className="mt-4 space-y-5">
