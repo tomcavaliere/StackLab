@@ -49,6 +49,8 @@ verdicts:
     - { tech: laravel, verdict: acceptable, why: "Seulement si l'application principale est en Laravel." }
   base-operationnelle:
     - { tech: mysql, verdict: ideal, why: "Relationnel éprouvé à très grande échelle, avec des bases réparties par domaine de service." }
+    - { tech: oracle-database, verdict: acceptable, why: "Tiendrait la charge, mais des licences par processeur sur des centaines de bases de services coûteraient très cher, là où MySQL fait le travail sans licence." }
+    - { tech: sql-server, verdict: acceptable, why: "Relationnel solide, mais des licences à chaque base de service et un écosystème Microsoft sans lien avec des équipes outillées en open-source." }
     - { tech: postgresql, verdict: ideal, why: "Même rôle que MySQL : transactions pour les réservations et les paiements." }
     - { tech: cassandra, verdict: acceptable, why: "Pour certains volumes d'écriture massifs ; réservations et paiements demandent des transactions." }
     - { tech: dynamodb, verdict: acceptable, why: "Clé-valeur managé pour certains services ; pas pour les données très reliées." }

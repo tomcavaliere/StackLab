@@ -34,6 +34,8 @@ verdicts:
     - { tech: dynamodb, verdict: ideal, why: "Mêmes atouts sans cluster à opérer, si l'on accepte la dépendance à AWS." }
     - { tech: postgresql, verdict: acceptable, why: "Excellent pour les commandes et leurs transactions ; les écritures continues des positions sur un seul serveur principal demanderont un cache ou du partitionnement." }
     - { tech: mysql, verdict: acceptable, why: "Même profil que PostgreSQL : solide pour les commandes, à compléter pour les positions." }
+    - { tech: oracle-database, verdict: acceptable, why: "Tient la charge transactionnelle et la bascule (RAC, Data Guard), et le budget est confortable ; mais rien dans la refonte n'exige ses licences, PostgreSQL fait le même travail." }
+    - { tech: sql-server, verdict: acceptable, why: "Solide pour les commandes, avec des répliques Always On ; aucun écosystème Microsoft dans le brief pour justifier les licences." }
     - { tech: mongodb, verdict: acceptable, why: "Sharding intégré et écritures par document rapides ; le choix de la clé de partition est décisif et difficile à changer ensuite." }
     - { tech: supabase, verdict: acceptable, why: "C'est un PostgreSQL hébergé : mêmes limites que PostgreSQL, et ses API générées ne servent pas ici." }
     - { tech: sqlite, verdict: inadapte, why: "Un fichier sur une seule machine, un seul écrivain à la fois : impossible avec des écritures continues venues de nombreuses instances." }

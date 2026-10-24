@@ -44,6 +44,8 @@ verdicts:
     - { tech: postgresql, verdict: ideal, why: "Utilisateurs, photos et relations sont des données relationnelles, qu'on partitionne sur de nombreux serveurs." }
     - { tech: cassandra, verdict: ideal, why: "Écritures massives (fil, activité) réparties et répliquées entre plusieurs datacenters." }
     - { tech: mysql, verdict: ideal, why: "Relationnel éprouvé à très grande échelle, même rôle que PostgreSQL." }
+    - { tech: oracle-database, verdict: surdimensionne, why: "Licences et DBA spécialisés pour une petite équipe en croissance fulgurante : le coût suivrait chaque serveur ajouté." }
+    - { tech: sql-server, verdict: acceptable, why: "Relationnel solide, mais une licence par serveur pèse dans une croissance aussi rapide, et une équipe Python n'a rien à gagner à l'écosystème Microsoft." }
     - { tech: mongodb, verdict: acceptable, why: "Possible, mais les relations entre utilisateurs, photos et abonnements sont très structurées." }
     - { tech: dynamodb, verdict: acceptable, why: "Clé-valeur managé qui tient la charge ; modélisation contrainte et dépendance à AWS." }
     - { tech: supabase, verdict: inadapte, why: "Back-end hébergé de projet unique, pas à cette échelle." }

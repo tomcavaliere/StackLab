@@ -38,6 +38,8 @@ stack:
     techs:
       - { tech: sql, essential: true, why: "Le langage commun des bases relationnelles : le comprendre sert avec presque toutes les bases." }
       - { tech: postgresql, essential: true, why: "La base relationnelle polyvalente par défaut : transactions, contraintes, JSON et extensions." }
+      - { tech: indexation, why: "Garder les requêtes rapides quand les tables grossissent : le bon index, vérifié avec EXPLAIN." }
+      - { tech: transactions-acid, why: "Enregistrer une commande, ses lignes et le stock d'un seul bloc, sans incohérence ni double vente." }
       - { tech: mysql, why: "Autre grande base relationnelle open source, très présente dans l'écosystème PHP." }
       - { tech: sqlite, why: "Une base dans un simple fichier, sans serveur : parfaite pour le développement, les petits outils et l'embarqué." }
       - { tech: mongodb, why: "Stocke des documents JSON souples quand le schéma bouge souvent ou que les données sont imbriquées." }

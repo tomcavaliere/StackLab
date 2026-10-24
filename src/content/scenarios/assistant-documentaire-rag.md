@@ -64,6 +64,8 @@ verdicts:
     - { tech: postgresql, verdict: ideal, why: "Stocke documents, métadonnées et droits d'accès, et accueille les vecteurs avec une extension : une seule base pour tout." }
     - { tech: supabase, verdict: acceptable, why: "PostgreSQL managé avec authentification incluse ; pratique, mais place les documents confidentiels chez un tiers." }
     - { tech: mysql, verdict: acceptable, why: "Base relationnelle solide pour les métadonnées et les droits ; la recherche vectorielle serait à confier à un autre service." }
+    - { tech: oracle-database, verdict: surdimensionne, why: "Licences et administration d'une base d'entreprise pour 3 développeurs, quelques centaines de questions par jour et une première version en 2 mois." }
+    - { tech: sql-server, verdict: acceptable, why: "Convient aux métadonnées et aux droits si l'entreprise est déjà équipée Microsoft ; sinon, une licence sans bénéfice pour ce projet." }
     - { tech: sqlite, verdict: surdimensionne, why: "Une base locale en fichier : suffisante pour un prototype, pas pour des utilisateurs simultanés sur plusieurs services." }
     - { tech: mongodb, verdict: acceptable, why: "Peut stocker documents et métadonnées, mais les droits d'accès par employé se modélisent plus naturellement en relationnel." }
     - { tech: elasticsearch, verdict: acceptable, why: "Bon moteur de recherche de texte, y compris par mots-clés, mais un cluster à opérer en plus pour ce volume." }

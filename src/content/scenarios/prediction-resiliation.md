@@ -19,6 +19,8 @@ verdicts:
   base-operationnelle:
     - { tech: postgresql, verdict: ideal, why: "Contient déjà les abonnés, leurs paiements et leur usage, et reçoit la liste hebdomadaire pour l'équipe relation client." }
     - { tech: mysql, verdict: acceptable, why: "Même rôle que PostgreSQL pour des données d'abonnés relationnelles, sans avantage particulier ici." }
+    - { tech: oracle-database, verdict: surdimensionne, why: "Licences et administration lourdes pour quelques centaines de milliers d'abonnés et une équipe de deux personnes au budget limité." }
+    - { tech: sql-server, verdict: acceptable, why: "Si les données d'abonnés y sont déjà, on les lit en SQL comme ailleurs ; l'installer pour ce projet n'apporterait rien." }
     - { tech: supabase, verdict: acceptable, why: "PostgreSQL managé qui convient, avec des fonctions (authentification, API) dont ce projet n'a pas besoin." }
     - { tech: sqlite, verdict: acceptable, why: "Peut suffire pour un premier prototype d'analyse sur un poste, pas pour des données partagées par l'équipe." }
     - { tech: mongodb, verdict: acceptable, why: "Peut stocker les données, mais l'historique d'abonnés est naturellement tabulaire et se manipule mieux en SQL." }

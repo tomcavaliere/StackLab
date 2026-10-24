@@ -128,6 +128,31 @@ parcours:
         lessons: [regression]
         themes: [statistiques]
 
+  - id: dba
+    kind: metier
+    role: dba
+    title: Administrateur de bases de données
+    intro: "Garder les bases rapides, cohérentes et toujours récupérables : moteurs, index, transactions, réplication, sauvegardes."
+    requires: [tronc-commun]
+    units:
+      - id: moteurs
+        title: Connaître les moteurs
+        intro: "Après PostgreSQL, les autres moteurs qu'un DBA croise : MySQL, la base embarquée SQLite, et les deux grandes bases commerciales."
+        lessons: [mysql, sqlite, oracle-database, sql-server]
+      - id: performance
+        title: Rendre les requêtes rapides
+        intro: "Choisir les bons index et lire les plans d'exécution."
+        lessons: [indexation]
+      - id: coherence
+        title: Garantir la cohérence
+        intro: "Transactions, niveaux d'isolation, verrous et interblocages."
+        lessons: [transactions-acid]
+      - id: disponibilite
+        title: Disponibilité et récupération
+        intro: "Survivre à une panne avec la réplication, à une erreur avec les sauvegardes, puis départager les solutions dans le quiz du thème."
+        lessons: [replication, sauvegarde-restauration]
+        themes: [administration-bases]
+
   - id: devops-sre
     kind: metier
     role: devops-sre
@@ -167,6 +192,10 @@ parcours:
         title: Choisir un langage et un framework
         intro: "TypeScript côté serveur avec Node.js, ou Python avec FastAPI."
         lessons: [typescript, nodejs, express, fastapi]
+      - id: stocker
+        title: Stocker les données
+        intro: "Au-delà du SQL : des index pour que les requêtes restent rapides, des transactions pour que les écritures restent cohérentes."
+        lessons: [indexation, transactions-acid]
       - id: exposer
         title: Exposer l'API
         intro: "Au-delà de REST : requêtes flexibles, temps réel, appels entre services."
@@ -291,7 +320,7 @@ parcours:
       - id: bases-de-donnees
         title: Bases de données
         intro: "Une famille de base par besoin, du fichier SQLite à l'entrepôt cloud."
-        lessons: [sqlite, mysql, mongodb, supabase, redis, memcached, dynamodb, cassandra, elasticsearch, duckdb, clickhouse, bigquery, snowflake]
+        lessons: [sqlite, mysql, oracle-database, sql-server, mongodb, supabase, redis, memcached, dynamodb, cassandra, elasticsearch, duckdb, clickhouse, bigquery, snowflake]
         themes: [bases-de-donnees]
 
   - id: deployer-exploiter

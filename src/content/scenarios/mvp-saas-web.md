@@ -41,6 +41,8 @@ verdicts:
     - { tech: postgresql, verdict: ideal, why: "Données très reliées (studios, cours, élèves, réservations, abonnements) : le relationnel s'impose, et c'est la base par défaut des PaaS." }
     - { tech: supabase, verdict: ideal, why: "Un PostgreSQL hébergé avec l'authentification incluse : très rapide à démarrer." }
     - { tech: mysql, verdict: acceptable, why: "Relationnel aussi, il convient tout à fait à ce volume ; PostgreSQL est simplement le choix par défaut le plus courant aujourd'hui." }
+    - { tech: oracle-database, verdict: surdimensionne, why: "Une base d'entreprise sous licence pour quelques centaines d'utilisateurs et quelques dizaines d'euros d'hébergement par mois." }
+    - { tech: sql-server, verdict: surdimensionne, why: "Éditions de production payantes et rarement proposées par les PaaS bon marché ; l'édition Express gratuite est limitée et rien ne demande Microsoft ici." }
     - { tech: mongodb, verdict: acceptable, why: "Fonctionne, mais une réservation relie un élève, un cours et un abonnement : on recode jointures et intégrité dans l'application." }
     - { tech: cassandra, verdict: surdimensionne, why: "Conçue pour des écritures massives réparties sur un cluster ; le planning s'interroge de plusieurs façons, difficiles à modéliser sans jointures." }
     - { tech: dynamodb, verdict: surdimensionne, why: "Modélisation par clés contraignante pour un planning interrogé de plusieurs façons, et dépendance à AWS sans bénéfice à ce volume." }
