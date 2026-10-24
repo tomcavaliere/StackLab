@@ -1,25 +1,35 @@
 // Hors build (`npm run check:exercises`) : exécute la solution de chaque exercice exécutable avec les mêmes moteurs que
 // l'atelier (src/components/atelier/run.ts) et la compare à expected. Vérifie aussi que le starter ne passe pas déjà.
-// Python : paquet npm pyodide, de la même version que celle chargée par le navigateur depuis le CDN.
+// Python et R : paquets npm pyodide et webr, de la même version que celle chargée par le navigateur depuis le CDN.
 import { readdirSync, readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import initSqlJs from 'sql.js';
 import { loadPyodide } from 'pyodide';
+import { WebR } from 'webr';
 import { transform } from 'sucrase';
-import { normalize, PYODIDE_VERSION, runJs, runPython, runSql, runTs } from '../src/components/atelier/run.ts';
+import { normalize, PYODIDE_VERSION, runJs, runPython, runR, runSql, runTs, WEBR_VERSION } from '../src/components/atelier/run.ts';
 
 const DIR = 'src/content/exercises';
-const pyVersion = JSON.parse(readFileSync('node_modules/pyodide/package.json', 'utf8')).version;
-if (pyVersion !== PYODIDE_VERSION) {
-  console.error(`pyodide ${pyVersion} installé, mais l'atelier charge ${PYODIDE_VERSION} (PYODIDE_VERSION dans run.ts)`);
-  process.exit(1);
+const installed = (pkg) => JSON.parse(readFileSync(`node_modules/${pkg}/package.json`, 'utf8')).version;
+for (const [pkg, expected, name] of [['pyodide', PYODIDE_VERSION, 'PYODIDE_VERSION'], ['webr', WEBR_VERSION, 'WEBR_VERSION']]) {
+  if (installed(pkg) !== expected) {
+    console.error(`${pkg} ${installed(pkg)} installé, mais l'atelier charge ${expected} (${name} dans run.ts)`);
+    process.exit(1);
+  }
 }
 
-let sql, python;
+let sql, python, r;
 async function run(lang, code, setup) {
   if (lang === 'javascript') return runJs(code);
   if (lang === 'typescript') return runTs(code, (c) => transform(c, { transforms: ['typescript'] }).code);
   if (lang === 'sql') return runSql((sql ??= await initSqlJs()), code, setup);
+  if (lang === 'r') {
+    if (!r) {
+      r = new WebR({ interactive: false });
+      await r.init();
+    }
+    return runR(r, code);
+  }
   return runPython((python ??= await loadPyodide()), code);
 }
 
@@ -43,6 +53,7 @@ for (const file of readdirSync(DIR).filter((f) => f.endsWith('.md'))) {
   }
 }
 
+r?.close(); // sinon le worker de webR garde le processus en vie
 if (errors.length) {
   console.error(errors.join('\n\n'));
   process.exit(1);

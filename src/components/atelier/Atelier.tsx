@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { normalize, TIMEOUT_MS, type Lang, type RunResult } from './run';
+import type { WebR } from 'webr';
+import { normalize, runR, TIMEOUT_MS, WEBR_VERSION, type Lang, type RunResult } from './run';
 
 // Îlot de l'atelier d'une fiche langage (ordi seulement, rien n'est enregistré).
-// Sans playground : exécuté dans un worker et comparé à la sortie attendue. Avec : copié, puis ouvert dans le bac à sable du langage.
+// Sans playground : exécuté hors de la page (worker, ou celui de webR pour R) et comparé à la sortie attendue. Avec : copié, puis ouvert dans le bac à sable du langage.
 export interface Exercise {
   id: string;
   title: string;
@@ -24,7 +25,39 @@ interface Props {
 let worker: Worker | null = null;
 const getWorker = () => (worker ??= new Worker(new URL('./runner.worker.ts', import.meta.url), { type: 'module' }));
 
+// R : webR (CDN officiel, ~12 Mo au premier lancement) tourne déjà dans son propre worker. On le pilote d'ici ;
+// au-delà du délai, on le ferme et le prochain lancement en recrée un.
+const WEBR = `https://webr.r-wasm.org/v${WEBR_VERSION}/`;
+let webR: Promise<WebR> | null = null;
+
+async function executeR(code: string): Promise<RunResult> {
+  webR ??= import(/* @vite-ignore */ `${WEBR}webr.mjs`).then(async (m: typeof import('webr')) => {
+    const r = new m.WebR({ baseUrl: WEBR, interactive: false });
+    await r.init();
+    return r;
+  });
+  let r: WebR;
+  try {
+    r = await webR;
+  } catch (e) {
+    webR = null;
+    return { output: '', error: `Moteur indisponible : ${e}` };
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      r.close();
+      webR = null;
+      resolve({ output: '', error: `Arrêté au bout de ${TIMEOUT_MS / 1000} s : boucle infinie ?` });
+    }, TIMEOUT_MS);
+    runR(r, code).then(
+      (res) => (clearTimeout(timer), resolve(res)),
+      (e) => (clearTimeout(timer), resolve({ output: '', error: String(e) })),
+    );
+  });
+}
+
 function execute(lang: Lang, code: string, setup?: string): Promise<RunResult> {
+  if (lang === 'r') return executeR(code);
   const w = getWorker();
   // Python : le premier appel charge Pyodide, plus long que le délai d'exécution.
   const limit = lang === 'python' ? TIMEOUT_MS * 6 : TIMEOUT_MS;
@@ -115,7 +148,7 @@ function Card({ n, exercise: x, lang, playground, playgroundLabel }: { n: number
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {runnable ? (
           <button type="button" onClick={run} disabled={running} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
-            {running ? (lang === 'python' ? 'Exécution (Python se charge la première fois)…' : 'Exécution…') : 'Exécuter'}{' '}
+            {running ? (lang === 'python' || lang === 'r' ? `Exécution (${lang === 'r' ? 'R' : 'Python'} se charge la première fois)…` : 'Exécution…') : 'Exécuter'}{' '}
             <span className="text-xs opacity-70">(Ctrl+Entrée)</span>
           </button>
         ) : (

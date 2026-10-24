@@ -353,7 +353,7 @@ const parcours = defineCollection({
 });
 
 // Exercices de code d'une fiche langage (src/content/exercises/<id de la fiche>.md), pour l'atelier de la fiche.
-// Sans playground, l'exercice s'exécute dans le navigateur (SQL, Python, JavaScript, TypeScript) et sa sortie est vérifiée :
+// Sans playground, l'exercice s'exécute dans le navigateur (SQL, Python, JavaScript, TypeScript, R) et sa sortie est vérifiée :
 // expected est alors obligatoire. La correspondance avec la fiche est vérifiée par scripts/check-content.mjs.
 const exercises = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/exercises' }),

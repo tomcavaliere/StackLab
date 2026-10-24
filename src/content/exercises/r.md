@@ -1,7 +1,5 @@
 ---
-# Atelier de la fiche R : pas d'exécution dans le navigateur ; le code se colle dans webR, R compilé en WebAssembly.
-playground: https://webr.r-wasm.org/latest/
-playgroundNote: "webR : R qui tourne dans le navigateur, projet r-wasm (pas un service du projet R lui-même)"
+# Atelier de la fiche R : exécuté dans le navigateur par webR (R compilé en WebAssembly), sortie comparée à expected.
 exercises:
   - id: variables-types
     title: "Variables et types"

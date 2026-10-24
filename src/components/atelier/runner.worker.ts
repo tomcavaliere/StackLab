@@ -9,7 +9,8 @@ const PYODIDE = `https://cdn.jsdelivr.net/npm/pyodide@${PYODIDE_VERSION}/`;
 let sql: Promise<SqlJsStatic> | undefined;
 let python: Promise<PyodideInterface> | undefined;
 
-async function run(lang: Lang, code: string, setup?: string): Promise<RunResult> {
+// R ne passe pas par ce worker : webR a le sien (Atelier.tsx).
+async function run(lang: Exclude<Lang, 'r'>, code: string, setup?: string): Promise<RunResult> {
   if (lang === 'javascript') return runJs(code);
   if (lang === 'typescript') {
     const { transform } = await import('sucrase');
@@ -23,7 +24,7 @@ async function run(lang: Lang, code: string, setup?: string): Promise<RunResult>
   return runPython(await python, code);
 }
 
-self.onmessage = async (e: MessageEvent<{ lang: Lang; code: string; setup?: string }>) => {
+self.onmessage = async (e: MessageEvent<{ lang: Exclude<Lang, 'r'>; code: string; setup?: string }>) => {
   const { lang, code, setup } = e.data;
   try {
     self.postMessage(await run(lang, code, setup));

@@ -13,7 +13,7 @@ const TECH_QUIZ = 'src/content/tech-quiz';
 const EXERCISES = 'src/content/exercises';
 const REQUIRED = ['Problème résolu', "Quand l'utiliser", "Quand l'éviter", 'Pour aller plus loin'];
 const LANGUAGE = ['Syntaxe', 'Exemples concrets'];
-const RUNNABLE = ['sql', 'python', 'javascript', 'typescript'];
+const RUNNABLE = ['sql', 'python', 'javascript', 'typescript', 'r'];
 const markdown = (dir) => readdirSync(dir).filter((f) => f.endsWith('.md'));
 
 const errors = [];

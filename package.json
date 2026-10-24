@@ -29,6 +29,7 @@
     "@types/sql.js": "1.4.11",
     "pyodide": "314.0.7",
     "vitest": "^5.0.3",
+    "webr": "0.6.0",
     "yaml": "2.9.1"
   },
   "allowScripts": {

@@ -3,10 +3,12 @@
 // Pas de syntaxe propre à TypeScript hors des types : Node importe ce fichier en retirant seulement les types.
 import type { Database, SqlJsStatic } from 'sql.js';
 import type { PyodideInterface } from 'pyodide';
+import type { WebR } from 'webr';
 
-export const RUNNABLE = ['sql', 'python', 'javascript', 'typescript'];
-export type Lang = 'sql' | 'python' | 'javascript' | 'typescript';
+export const RUNNABLE = ['sql', 'python', 'javascript', 'typescript', 'r'];
+export type Lang = 'sql' | 'python' | 'javascript' | 'typescript' | 'r';
 export const PYODIDE_VERSION = '314.0.7'; // = version du paquet npm pyodide (vérifié par check-exercises)
+export const WEBR_VERSION = '0.6.0'; // = version du paquet npm webr (vérifié par check-exercises)
 export const TIMEOUT_MS = 10_000;
 
 export interface RunResult {
@@ -83,5 +85,33 @@ export async function runPython(py: PyodideInterface, code: string): Promise<Run
     return { output: lines.join('\n'), error: (from >= 0 ? tail.slice(from) : tail.slice(-1)).join('\n') };
   } finally {
     globals.destroy();
+  }
+}
+
+/** R (webR) : sortie de la console capturée (cat, print, valeurs affichées comme dans la console R) ;
+ *  chaque exécution repart d'un environnement global vide. Avertissements et messages vont dans la sortie. */
+export async function runR(webR: WebR, code: string): Promise<RunResult> {
+  await webR.evalRVoid('rm(list = ls(all.names = TRUE))');
+  const shelter = await new webR.Shelter();
+  try {
+    const { output } = await shelter.captureR(code, {
+      withAutoprint: true,
+      captureConditions: true,
+      throwJsException: false, // une erreur R arrive dans output, après la sortie déjà produite
+      captureGraphics: false,
+    });
+    const lines: string[] = [];
+    let error: string | undefined;
+    for (const o of output) {
+      if (o.type === 'stdout' || o.type === 'stderr') lines.push(o.data);
+      else {
+        const message: string = await (await o.data.get('message')).toString();
+        if (o.type === 'error') error = message;
+        else lines.push(o.type === 'warning' ? `Warning: ${message}` : message.trimEnd());
+      }
+    }
+    return { output: lines.join('\n'), error };
+  } finally {
+    await shelter.purge();
   }
 }
