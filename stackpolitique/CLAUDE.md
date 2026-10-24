@@ -21,7 +21,7 @@ L'environnement (`.venv`, PATH, installation) et le monorepo sont décrits dans 
 | `npm run dev` | Serveur local sur http://localhost:4322 (StackData garde 4321) |
 | `npm run build` | Vérifie les sections des fiches, les `party` et les quiz (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
 | `npm test` | Tests Vitest (récompenses, parcours, révisions) |
-| `node scripts/check-quality.mjs lengths [ids]` | Signale les quiz où la bonne réponse est trop souvent l'option la plus longue |
+| `node scripts/check-quality.mjs lengths [ids]` | Signale les quiz où la bonne réponse est trop souvent l'option la plus longue ; avec des ids, liste les questions concernées |
 | `sqlite3 data/stackpolitique.db` | Interroger la progression locale |
 
 ## Architecture
@@ -100,7 +100,7 @@ Le skill `nouvelle-fiche` la déroule pas à pas.
    | `tags` | libres, optionnel |
    | `difficulty` | `1` notion de base · `2` demande un peu de recul · `3` pour approfondir |
    | `summary` | une phrase ; affichée sur les cartes et en tête de fiche |
-   | `liens` | `- { fiche: <id>, note: "…" }`, optionnel ; affichés dans les deux sens : déclarer A→B suffit |
+   | `liens` | `- { fiche: <id>, note: "…" }`, optionnel ; affichés dans les deux sens avec la même note : déclarer A→B suffit, la note doit se lire depuis les deux fiches |
    | `sources` | au moins une : `- { url, title, date, type: programme\|site-officiel\|institution\|presse\|ouvrage\|autre, note? }` |
    | `lastResearched` | date de la recherche qui a servi à écrire la fiche |
 
@@ -179,7 +179,7 @@ Le skill `quiz-theme` la déroule.
 ## Avancement
 
 - [x] Phase B : squelette (moteur copié de StackData et adapté, sans jeu ni atelier), 2 fiches d'échantillon (clivage gauche-droite, Ve République) avec leur quiz
-- [ ] Phase C : tronc commun (clivage et familles, institutions, élections, grands courants)
+- [x] Phase C : tronc commun, 19 fiches en 4 unités (clivages ; institutions ; élections ; grands courants), 380 questions, 3 thèmes (Qui fait quoi ?, Quelle élection ?, Quel courant ?)
 - [ ] Phases D : un parcours par parti (LFI, Les Écologistes, PS, Renaissance, MoDem, Horizons, LR, RN, Reconquête)
 - [ ] Phase E : comparaisons (thèmes « quel parti défend… ? »)
 - [ ] Phase F : déploiement (Vercel, Turso)

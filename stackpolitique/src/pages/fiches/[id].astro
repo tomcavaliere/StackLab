@@ -28,12 +28,12 @@ const members = all
 
 type Link = { fiche: CollectionEntry<'fiches'>; note: string };
 
-// Liens affichés dans les deux sens : un lien déclaré sur A vers B apparaît aussi sur B, avec la mention de A.
+// Liens affichés dans les deux sens : un lien déclaré sur A vers B apparaît aussi sur B, avec la même note.
 const links: Link[] = d.liens.map((l) => ({ fiche: byId.get(l.fiche.id)!, note: l.note }));
 for (const other of all) {
   for (const l of other.data.liens) {
     if (l.fiche.id !== fiche.id || links.some((o) => o.fiche.id === other.id)) continue;
-    links.push({ fiche: other, note: `Depuis la fiche ${other.data.name} : ${l.note}` });
+    links.push({ fiche: other, note: l.note });
   }
 }
 links.sort((a, b) => a.fiche.data.name.localeCompare(b.fiche.data.name, 'fr'));

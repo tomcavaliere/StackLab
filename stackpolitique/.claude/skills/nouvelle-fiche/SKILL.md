@@ -26,7 +26,7 @@ La politique bouge : dirigeants, alliances, programmes, mandats. **Ne rien écri
 ## 3. Écrire
 
 - **Modèles** : `src/content/fiches/clivage-gauche-droite.md` (notion), `cinquieme-republique.md` (institution).
-- **Frontmatter** : `name`, `kind`, `family` (parti seulement, vocabulaire `FAMILIES`), `party` (personnalité : id de la fiche de son parti), `tags`, `difficulty` (1 à 3), `summary` (une phrase), `liens: [{ fiche, note }]` (affichés dans les deux sens : ne déclarer qu'un côté), `sources` (au moins une : `{ url, title, date, type, note? }`), `lastResearched` (date du jour).
+- **Frontmatter** : `name`, `kind`, `family` (parti seulement, vocabulaire `FAMILIES`), `party` (personnalité : id de la fiche de son parti), `tags`, `difficulty` (1 à 3), `summary` (une phrase), `liens: [{ fiche, note }]` (affichés dans les deux sens avec la même note : ne déclarer qu'un côté, et écrire une note qui se lit depuis les deux fiches), `sources` (au moins une : `{ url, title, date, type, note? }`), `lastResearched` (date du jour).
 - **Source non datée** (page de site officiel, texte consolidé) : date de consultation et `note: "page non datée, date de consultation"`. Date connue seulement au mois : le 1er du mois, et le dire dans `note`.
 - **Sections `##` imposées** (le build les vérifie) :
   - parti : `Origines et histoire`, `Idées et valeurs`, `Programme`, `Figures`, `Électorat et résultats`, `Pour aller plus loin` ;

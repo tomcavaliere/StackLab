@@ -1,5 +1,6 @@
 // Contrôle de qualité du contenu, hors build (lancer depuis le dossier de l'app) :
 //   node scripts/check-quality.mjs lengths [ids...]    quiz de fiche : part des questions où la bonne réponse est l'option la plus longue
+//                                                      (avec des ids : liste les questions concernées des quiz signalés)
 import { readdirSync, readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 
@@ -16,6 +17,12 @@ if (mode === 'lengths') {
     total += questions.length; longest += n;
     const flag = n / questions.length > 0.4 ? '  <-- trop souvent la plus longue' : '';
     console.log(`${id} : ${questions.length} questions, réponse la plus longue ${n} fois (${Math.round((100 * n) / questions.length)} %)${flag}`);
+    // Avec des ids : le détail des questions concernées (longueur de la réponse / du plus long leurre).
+    if (ids.length && flag) {
+      for (const q of questions.filter((q) => q.decoys.every((d) => q.answer.length > d.length))) {
+        console.log(`  ${q.id} : ${q.answer.length} / ${Math.max(...q.decoys.map((d) => d.length))}`);
+      }
+    }
   }
   console.log(`Total : ${longest}/${total} (${Math.round((100 * longest) / total)} %)`);
 } else {

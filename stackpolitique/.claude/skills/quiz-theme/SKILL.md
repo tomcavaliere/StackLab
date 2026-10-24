@@ -30,7 +30,7 @@ Toutes les commandes se lancent en bash depuis le dossier `stackpolitique/`, ave
 - **Le leurre doit vraiment tenter** : un parti proche (même famille, ou position voisine sur ce sujet), pas un parti à l'opposé.
 - **Neutralité** : formuler la mesure dans les mots du programme, sans la qualifier. Faire tourner les partis : chacun doit être tantôt la réponse, tantôt le leurre.
 - **Ne jamais renommer ni réutiliser un `id`** de question.
-- **YAML** : chaînes entre guillemets doubles, le fichier **se termine par la ligne `---`**.
+- **YAML** : chaînes entre guillemets doubles, le fichier **se termine par la ligne `---`**. Un `id` est en ASCII sans accent et n'est jamais un nombre seul.
 
 ## 3. Valider
 
