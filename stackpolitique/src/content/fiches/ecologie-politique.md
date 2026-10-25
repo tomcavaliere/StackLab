@@ -57,4 +57,4 @@ lastResearched: 2026-10-24
 ## Pour aller plus loin
 
 - L'article « Les Verts, France » de l'Encyclopædia Universalis.
-- La fiche du parti Les Écologistes, quand elle sera écrite.
+- Les fiches « Les Écologistes » et « La décroissance ».

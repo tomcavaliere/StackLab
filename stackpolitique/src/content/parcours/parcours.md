@@ -52,4 +52,25 @@ parcours:
         intro: "Le fondateur et candidat, la présidente du groupe, le coordinateur, la voix au Parlement européen, la plume du programme, le président de la commission des finances et le maire de Roubaix."
         lessons: [jean-luc-melenchon, mathilde-panot, manuel-bompard, manon-aubry, clemence-guette, eric-coquerel, david-guiraud]
         themes: [quel-insoumis]
+
+  - id: les-ecologistes
+    kind: parti
+    party: les-ecologistes
+    title: Les Écologistes
+    intro: "Le parti né des Verts en 1984 : son histoire, de la « vague verte » de 2020 aux municipales de 2026, son programme pour 2027, ses débats sur les alliances et ses figures."
+    requires: [tronc-commun]
+    units:
+      - id: eco-histoire-et-identite
+        title: Histoire et identité
+        intro: "Des Verts aux Écologistes : origines, idées, programme « Pour une prospérité écologique » et résultats."
+        lessons: [les-ecologistes]
+      - id: eco-idees-et-strategie
+        title: Idées et stratégie
+        intro: "La décroissance, un courant qui traverse le parti, et la primaire de la gauche de 2026, qui n'a pas eu lieu."
+        lessons: [decroissance, primaire-de-la-gauche-2026]
+      - id: eco-les-figures
+        title: Les figures
+        intro: "La secrétaire nationale et candidate, la présidente du groupe à l'Assemblée, l'écoféministe, l'ancien candidat rallié à Glucksmann, la juriste du climat et deux maires de grandes villes."
+        lessons: [marine-tondelier, cyrielle-chatelain, sandrine-rousseau, yannick-jadot, marie-toussaint, eric-piolle, gregory-doucet]
+        themes: [quel-ecologiste]
 ---

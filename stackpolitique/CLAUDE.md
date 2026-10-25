@@ -183,5 +183,7 @@ Le skill `quiz-theme` la déroule.
 - [ ] Phases D : un parcours par parti (LFI, Les Écologistes, PS, Renaissance, MoDem, Horizons, LR, RN, Reconquête)
   - [x] LFI : 10 fiches (parti, écosocialisme, Nouveau Front populaire, 7 personnalités), 200 questions, thème « Quel insoumis ? »
   - [ ] **À mettre à jour après le 7 novembre 2026** : LFI présente les 6 et 7 novembre la nouvelle édition de son programme (« la Nouvelle France »). Les fiches ont été écrites avec l'édition de janvier 2025 : refaire la recherche, puis mettre à jour la section « Programme » de `la-france-insoumise.md` et ses questions (`smic`, `retraite`, `fiscalite`, `energie`, `institutions`, `otan`, `nouveau-programme`), et `clemence-guette.md`.
+  - [x] Les Écologistes : 10 fiches (parti, décroissance, primaire de la gauche de 2026, 7 personnalités), 200 questions, thème « Quel écologiste ? »
+  - [ ] **À mettre à jour après le 13 décembre 2026** : les adhérents des Écologistes votent du 10 au 13 décembre sur le maintien de la candidature de Marine Tondelier. Mettre à jour `les-ecologistes.md` (histoire), `marine-tondelier.md`, `primaire-de-la-gauche-2026.md` et les questions `vote-decembre`, `decembre-2026`, `suite-ecologistes`, `idee-recue-renonce`. Vérifier aussi l'issue de la suspension de Yannick Jadot (trois mois à partir du 25 septembre 2026).
 - [ ] Phase E : comparaisons (thèmes « quel parti défend… ? »)
 - [x] Déploiement : servie sous `/politique` par le projet Vercel commun, derrière le portail, tables `politique_*` dans la base Turso partagée
