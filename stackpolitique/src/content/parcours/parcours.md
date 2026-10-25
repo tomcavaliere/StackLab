@@ -94,4 +94,25 @@ parcours:
         intro: "Le premier secrétaire, le président du groupe, le candidat venu de Place publique, l'ancien président, la présidente de l'Occitanie, le maire de Rouen et le refondateur d'Épinay."
         lessons: [olivier-faure, boris-vallaud, raphael-glucksmann, francois-hollande, carole-delga, nicolas-mayer-rossignol, francois-mitterrand]
         themes: [quel-socialiste]
+
+  - id: renaissance
+    kind: parti
+    party: renaissance
+    title: Renaissance
+    intro: "Le parti fondé par Emmanuel Macron : la victoire de 2017, le « en même temps », la perte de la majorité en 2022 puis en 2024, et la candidature de Gabriel Attal pour 2027."
+    requires: [tronc-commun]
+    units:
+      - id: re-histoire-et-identite
+        title: Histoire et identité
+        intro: "D'En marche à Renaissance : origines, idées, propositions pour 2027 et résultats."
+        lessons: [renaissance]
+      - id: re-idees-et-strategie
+        title: Idées et stratégie
+        intro: "Le macronisme, et la présidentielle de 2017 qui l'a porté au pouvoir."
+        lessons: [macronisme, presidentielle-2017]
+      - id: re-les-figures
+        title: Les figures
+        intro: "Le fondateur, le candidat pour 2027, le Premier ministre, l'ancienne Première ministre, la présidente de l'Assemblée, le garde des Sceaux et le commissaire européen."
+        lessons: [emmanuel-macron, gabriel-attal, sebastien-lecornu, elisabeth-borne, yael-braun-pivet, gerald-darmanin, stephane-sejourne]
+        themes: [quel-macroniste]
 ---

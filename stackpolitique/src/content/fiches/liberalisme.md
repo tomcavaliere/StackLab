@@ -47,4 +47,4 @@ lastResearched: 2026-10-24
 ## Pour aller plus loin
 
 - L'article « Libéralisme » de l'Encyclopædia Universalis.
-- Les fiches « Le conservatisme » et « Le socialisme ».
+- Les fiches « Le conservatisme », « Le socialisme », « Renaissance » et « Le macronisme ».
