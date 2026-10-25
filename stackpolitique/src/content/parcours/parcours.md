@@ -30,4 +30,26 @@ parcours:
         intro: "Les familles d'idées dont les partis se réclament : socialisme, libéralisme, conservatisme, gaullisme, écologie, nationalisme et souverainisme, populisme."
         lessons: [socialisme, liberalisme, conservatisme, gaullisme, ecologie-politique, nationalisme-souverainisme, populisme]
         themes: [quel-courant]
+
+  # ─── Partis ─────────────────────────────────────────────────────────────────
+  - id: la-france-insoumise
+    kind: parti
+    party: la-france-insoumise
+    title: La France insoumise
+    intro: "Le mouvement fondé par Jean-Luc Mélenchon en 2016 : son histoire, son écosocialisme, son programme, ses alliances à gauche et ses figures."
+    requires: [tronc-commun]
+    units:
+      - id: lfi-histoire-et-identite
+        title: Histoire et identité
+        intro: "D'où vient LFI, comment elle fonctionne, ce qu'elle propose, ses résultats et le débat sur son classement."
+        lessons: [la-france-insoumise]
+      - id: lfi-idees-et-programme
+        title: Idées et programme
+        intro: "L'écosocialisme, l'idéologie dont se réclame LFI, et le Nouveau Front populaire, l'alliance de gauche de 2024."
+        lessons: [ecosocialisme, nouveau-front-populaire]
+      - id: lfi-les-figures
+        title: Les figures
+        intro: "Le fondateur et candidat, la présidente du groupe, le coordinateur, la voix au Parlement européen, la plume du programme, le président de la commission des finances et le maire de Roubaix."
+        lessons: [jean-luc-melenchon, mathilde-panot, manuel-bompard, manon-aubry, clemence-guette, eric-coquerel, david-guiraud]
+        themes: [quel-insoumis]
 ---

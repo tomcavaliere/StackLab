@@ -181,5 +181,7 @@ Le skill `quiz-theme` la déroule.
 - [x] Phase B : squelette (moteur copié de StackData et adapté, sans jeu ni atelier), 2 fiches d'échantillon (clivage gauche-droite, Ve République) avec leur quiz
 - [x] Phase C : tronc commun, 19 fiches en 4 unités (clivages ; institutions ; élections ; grands courants), 380 questions, 3 thèmes (Qui fait quoi ?, Quelle élection ?, Quel courant ?)
 - [ ] Phases D : un parcours par parti (LFI, Les Écologistes, PS, Renaissance, MoDem, Horizons, LR, RN, Reconquête)
+  - [x] LFI : 10 fiches (parti, écosocialisme, Nouveau Front populaire, 7 personnalités), 200 questions, thème « Quel insoumis ? »
+  - [ ] **À mettre à jour après le 7 novembre 2026** : LFI présente les 6 et 7 novembre la nouvelle édition de son programme (« la Nouvelle France »). Les fiches ont été écrites avec l'édition de janvier 2025 : refaire la recherche, puis mettre à jour la section « Programme » de `la-france-insoumise.md` et ses questions (`smic`, `retraite`, `fiscalite`, `energie`, `institutions`, `otan`, `nouveau-programme`), et `clemence-guette.md`.
 - [ ] Phase E : comparaisons (thèmes « quel parti défend… ? »)
 - [x] Déploiement : servie sous `/politique` par le projet Vercel commun, derrière le portail, tables `politique_*` dans la base Turso partagée
