@@ -81,7 +81,7 @@ scripts/check-quality.mjs  hors build : bonne réponse trop souvent la plus long
 - **Sources** : toute fiche a au moins une source datée (`sources`). Ordre de préférence : programme officiel et site du parti, institutions (Assemblée nationale, Sénat, Conseil constitutionnel, ministère de l'Intérieur pour les résultats), vie-publique.fr, presse de référence. Page non datée : date de consultation et `note: "page non datée, date de consultation"`.
 - **Sources de plus de 3 ans** : signalées (⚠) sur les fiches de parti et de personnalité seulement ; pour une notion ou un événement, une source ancienne est normale.
 - **Exactitude** : aucun chiffre inventé ; résultats électoraux officiels, avec l'élection et l'année. En cas de doute, l'écrire dans la fiche.
-- **Actualité** : dirigeants, alliances et programmes changent. Une fiche de parti ou de personnalité s'écrit **après une recherche web**, porte `lastResearched`, et sa section « Programme » cite le dernier programme publié et son année. Avant d'écrire, présenter à l'utilisateur un résumé des faits et des sources.
+- **Actualité** : dirigeants, alliances et programmes changent. Une fiche de parti ou de personnalité s'écrit **après une recherche web**, porte `lastResearched`, et sa section « Programme » cite le dernier programme publié et son année. Pas de résumé à faire valider avant d'écrire : chaque fait de la fiche doit venir d'une source listée dans `sources`.
 - **Classification** (`family`) : nomenclature usuelle (ministère de l'Intérieur, science politique) ; quand un parti la conteste, la fiche le dit.
 
 ## Procédure : ajouter une fiche

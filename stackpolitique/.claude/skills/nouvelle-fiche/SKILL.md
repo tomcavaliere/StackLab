@@ -21,7 +21,7 @@ La politique bouge : dirigeants, alliances, programmes, mandats. **Ne rien écri
 
 1. Chercher sur le web, dans cet ordre : programme officiel et site du parti ; institutions (Assemblée nationale, Sénat, Conseil constitutionnel, ministère de l'Intérieur pour les résultats) ; vie-publique.fr ; presse de référence (pour les faits datés : élections internes, nominations, ruptures).
 2. Noter chaque fait avec sa source et sa date. Résultats électoraux : uniquement des chiffres officiels, avec l'élection et l'année.
-3. **Présenter un résumé à l'utilisateur avant d'écrire** pour un parti ou une personnalité : faits clés, dirigeants actuels, dernier programme publié, et la liste des sources (titre, type, date). Signaler ce qui est incertain ou contesté.
+3. **Pas de résumé à valider** : écrire directement. La traçabilité passe par la fiche elle-même : chaque fait écrit doit venir d'une source listée dans `sources` (titre, type, date). Un fait qu'aucune source retenue ne confirme n'est pas écrit. Ce qui est incertain ou contesté est dit dans la fiche, et repris dans le compte rendu final à l'utilisateur.
 
 ## 3. Écrire
 
