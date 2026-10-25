@@ -17,14 +17,14 @@ Projet perso, pour un seul utilisateur. Elle est déployée sur Vercel, protég�
 
 ## Démarrer
 
-L'installation (Node dans un venv Python, `npm ci` à la racine du dépôt) est décrite dans le [README de la racine](../README.md). Ensuite, depuis la racine : `npm run dev:data`, ou depuis ce dossier : `npm run dev`. L'app tourne sur http://localhost:4321.
+L'installation (Node dans un venv Python, `npm ci` à la racine du dépôt) est décrite dans le [README de la racine](../README.md). Ensuite, depuis la racine : `npm run dev:data`, ou depuis ce dossier : `npm run dev`. L'app tourne sur http://localhost:4321/data/.
 
 Sans configuration, la progression va dans le fichier local `data/stackdata.db`. Pour travailler sur la même progression que l'app en ligne, copier `.env.example` en `.env` (dans ce dossier) et y mettre l'URL et le token Turso.
 
 ## Déploiement
 
 1. **Turso** : créer une base (celle de StackData s'appelle `stacklab`, son nom d'origine) en région `aws-eu-west-1` (Irlande) sur [turso.tech](https://turso.tech), puis récupérer son URL (`libsql://…`) et un token.
-2. **Vercel** : importer le dépôt GitHub sur [vercel.com](https://vercel.com) (« Add New Project ») avec Root Directory = `stackdata`, puis renseigner `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` et `APP_PASSWORD` dans Settings → Environment Variables. La région des fonctions est fixée par `vercel.json` (`dub1`, Dublin, comme la base Turso).
+2. **Vercel** : un seul projet pour les deux apps, Root Directory vide (voir le `CLAUDE.md` racine) ; l'app y est servie sous `/data`. Renseigner `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` et `APP_PASSWORD` dans Settings → Environment Variables. La région des fonctions est fixée par `vercel.json` (`dub1`, Dublin, comme la base Turso).
 3. Chaque `git push` sur `main` redéploie. Sur le téléphone, ouvrir l'URL Vercel, saisir le mot de passe (n'importe quel nom d'utilisateur), puis « Ajouter à l'écran d'accueil ».
 
 Les tables sont créées au premier appel. Pour reprendre une progression locale : `sqlite3 data/stackdata.db .dump > dump.sql`, puis `turso db shell stacklab < dump.sql`.
@@ -33,7 +33,7 @@ Les tables sont créées au premier appel. Pour reprendre une progression locale
 
 | Commande | Effet |
 |---|---|
-| `npm run dev` | Serveur local sur http://localhost:4321 |
+| `npm run dev` | Serveur local sur http://localhost:4321/data/ |
 | `npm run build` | Vérifie le contenu (sections des fiches, quiz), puis lance `astro build`, qui valide tous les schémas |
 | `npm test` | Tests Vitest du scoring et des récompenses |
 | `node scripts/check-quality.mjs verdicts` | Liste les cartes sans verdict, par scénario |

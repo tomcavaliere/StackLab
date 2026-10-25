@@ -10,15 +10,15 @@ L'environnement (`.venv`, PATH, installation) et le monorepo sont décrits dans 
 
 ## Déploiement
 
-- **Vercel** (adapter `@astrojs/vercel`), relié au dépôt GitHub, Root Directory = `stackdata` : chaque `git push` sur `main` redéploie. Les 3 variables sont dans les réglages du projet Vercel (Settings → Environment Variables). Région des fonctions : `vercel.json` (`dub1`, Dublin), la même que la base Turso (`aws-eu-west-1`).
-- **Turso** : SQLite hébergé (client `@libsql/client`), base `stacklab` (nom d'origine, gardé). Le schéma s'applique tout seul au premier appel, comme en local.
+- **Vercel** (adapter `@astrojs/vercel`) : l'app est servie sous **`/data`** (`base` dans `astro.config.mjs`) par le projet Vercel commun aux deux apps, derrière le portail ; déploiement décrit dans le `CLAUDE.md` racine. **Tout lien interne passe par `url()`** (`src/lib/url.ts`) : `href={url('/fiches')}`, `fetch(url('/api/…'))`, `Astro.redirect(url('/verrou'))`. Région des fonctions : `vercel.json` (`dub1`, Dublin), la même que la base Turso (`aws-eu-west-1`).
+- **Turso** : SQLite hébergé (client `@libsql/client`), base `stacklab` (nom d'origine, gardé), partagée avec StackPolitique, dont les tables sont préfixées `politique_`. Le schéma s'applique tout seul au premier appel, comme en local.
 - **Mot de passe** : `src/middleware.ts`, Basic Auth sur toutes les requêtes (le nom d'utilisateur est ignoré). Le navigateur le demande une fois puis le mémorise.
 
 ## Commandes
 
 | Commande | Effet |
 |---|---|
-| `npm run dev` | Serveur local sur http://localhost:4321 |
+| `npm run dev` | Serveur local sur http://localhost:4321/data/ |
 | `npm run build` | Vérifie les sections des fiches et les quiz de techno (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
 | `npm test` | Tests Vitest (scoring, récompenses, parcours, révisions) |
 | `npm run check:exercises [ids]` | Exécute la solution de chaque exercice de l'atelier (SQL, Python, JavaScript, TypeScript, R) et la compare à `expected` |

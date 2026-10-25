@@ -6,6 +6,7 @@ import Base from '../layouts/Base.astro';
 import { loadLearning, loadQuizzes } from '../lib/progress';
 import { unseen } from '../lib/review';
 import { SESSION_SIZE, techQuizId } from '../lib/rewards';
+import { url } from '../lib/url';
 
 const [{ path, states }, quizzes, techs, themes] = await Promise.all([
   loadLearning(),
@@ -31,7 +32,7 @@ const units = path.parcours
         const left = unseen(states, quiz).length;
         return {
           label: s.kind === 'lesson' ? techName.get(s.id) : `Thème : ${themeTitle.get(s.id)}`,
-          href: `${s.kind === 'lesson' ? `/quiz/techno/${s.id}` : `/quiz/${s.id}`}?renforcement`,
+          href: url(`${s.kind === 'lesson' ? `/quiz/techno/${s.id}` : `/quiz/${s.id}`}?renforcement`),
           seen: quiz.questionIds.length - left,
           total: quiz.questionIds.length,
           left,
@@ -53,7 +54,7 @@ const left = units.flatMap((u) => u.rows).reduce((n, r) => n + r.left, 0);
       <div class="mt-4 max-w-xl rounded border border-slate-200 bg-white px-5 py-5">
         <p class="font-semibold">Rien à renforcer pour l'instant.</p>
         <p class="mt-1 text-slate-600">Valide une première étape du parcours : ses questions restantes apparaîtront ici.</p>
-        <a href="/" class="mt-4 inline-block rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Continuer le parcours →</a>
+        <a href={url('/')} class="mt-4 inline-block rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Continuer le parcours →</a>
       </div>
     ) : (
       <>

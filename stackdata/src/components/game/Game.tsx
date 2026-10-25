@@ -16,6 +16,7 @@ import { CONFIDENCES, KINDS, LAYERS, VERDICTS, type Kind, type Layer } from '../
 import { scoreStack, type Card, type CardVerdict, type ScenarioRules, type ScoreResult } from '../../lib/scoring';
 import { buildFlow, FLOW_LABELS, nodeId, SOURCES, USER, type FlowKind, type Step } from './flows';
 import { PASS } from '../../lib/path';
+import { url } from '../../lib/url';
 
 export interface GameTech {
   id: string;
@@ -290,7 +291,7 @@ export default function Game({ scenarioId, rules, referenceStack, techs, company
     showDebrief(true);
     setSaveStatus('Enregistrement…');
     try {
-      const res = await fetch('/api/attempts', {
+      const res = await fetch(url('/api/attempts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -619,7 +620,7 @@ function Deck({
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-medium">{t.name}</span>
                 <a
-                  href={`/fiches/${t.id}`}
+                  href={url(`/fiches/${t.id}`)}
                   target="_blank"
                   draggable={false}
                   onClick={(e) => e.stopPropagation()}
@@ -651,7 +652,7 @@ function Results({
 }) {
   const name = (id: string) => techById.get(id)?.name ?? id;
   const link = (id: string) => (
-    <a href={`/fiches/${id}`} target="_blank" className="text-blue-700 underline">
+    <a href={url(`/fiches/${id}`)} target="_blank" className="text-blue-700 underline">
       {name(id)}
     </a>
   );
@@ -675,7 +676,7 @@ function Results({
       {result.score >= PASS.scenario ? (
         <p className="flex flex-wrap items-center gap-3 rounded border border-emerald-200 bg-emerald-50 px-4 py-3 font-medium text-emerald-800">
           ✓ Étape validée
-          <a href="/" className="ml-auto rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+          <a href={url('/')} className="ml-auto rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             Continuer le parcours →
           </a>
         </p>
@@ -750,7 +751,7 @@ function Results({
         <div className="rounded border border-violet-200 bg-white px-5 py-4">
           <h2 className="text-lg font-semibold">
             La vraie stack de{' '}
-            <a href={`/entreprises/${company.id}`} className="text-violet-700 underline">
+            <a href={url(`/entreprises/${company.id}`)} className="text-violet-700 underline">
               {company.company}
             </a>
           </h2>

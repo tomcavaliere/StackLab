@@ -32,10 +32,10 @@ export const POST: APIRoute = async ({ request }) => {
   const tx = await (await getDb()).transaction('write');
   try {
     for (const { themeId, answers } of parsed.data.sessions) {
-      const { lastInsertRowid } = await tx.execute({ sql: 'INSERT INTO quiz_sessions (theme_id) VALUES (?)', args: [themeId] });
+      const { lastInsertRowid } = await tx.execute({ sql: 'INSERT INTO politique_quiz_sessions (theme_id) VALUES (?)', args: [themeId] });
       for (const [i, a] of answers.entries()) {
         await tx.execute({
-          sql: 'INSERT INTO quiz_answers (session_id, position, question_id, chosen, correct) VALUES (?, ?, ?, ?, ?)',
+          sql: 'INSERT INTO politique_quiz_answers (session_id, position, question_id, chosen, correct) VALUES (?, ?, ?, ?, ?)',
           args: [lastInsertRowid!, i, a.questionId, a.chosen, a.correct],
         });
       }

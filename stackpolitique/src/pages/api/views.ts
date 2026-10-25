@@ -7,7 +7,7 @@ const Body = z.object({ ficheId: z.string() });
 /** Nombre de consultations par fiche : { [ficheId]: n }. */
 export const GET: APIRoute = async () => {
   const db = await getDb();
-  const rows = (await db.execute('SELECT fiche_id, count(*) AS n FROM fiche_views GROUP BY fiche_id')).rows as unknown as {
+  const rows = (await db.execute('SELECT fiche_id, count(*) AS n FROM politique_fiche_views GROUP BY fiche_id')).rows as unknown as {
     fiche_id: string;
     n: number;
   }[];
@@ -20,6 +20,6 @@ export const POST: APIRoute = async ({ request }) => {
   if (!parsed.success) return new Response(z.prettifyError(parsed.error), { status: 400 });
 
   const db = await getDb();
-  await db.execute({ sql: 'INSERT INTO fiche_views (fiche_id) VALUES (?)', args: [parsed.data.ficheId] });
+  await db.execute({ sql: 'INSERT INTO politique_fiche_views (fiche_id) VALUES (?)', args: [parsed.data.ficheId] });
   return new Response(null, { status: 204 });
 };

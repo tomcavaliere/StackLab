@@ -2,6 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { APP_PASSWORD } from 'astro:env/server';
 
 // Mot de passe unique (Basic Auth), demandé une fois par le navigateur puis mémorisé. Le nom d'utilisateur est ignoré.
+// Même realm (« Stacks ») que StackData et le portail : sur la même origine, un seul mot de passe pour les trois.
 // Sans APP_PASSWORD (dev local), tout passe.
 export const onRequest = defineMiddleware((context, next) => {
   if (!APP_PASSWORD) return next();
@@ -12,6 +13,6 @@ export const onRequest = defineMiddleware((context, next) => {
   }
   return new Response('Mot de passe requis', {
     status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="StackPolitique", charset="UTF-8"' },
+    headers: { 'WWW-Authenticate': 'Basic realm="Stacks", charset="UTF-8"' },
   });
 });

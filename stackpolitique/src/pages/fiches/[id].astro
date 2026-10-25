@@ -6,12 +6,13 @@ import { getDb } from '../../lib/db';
 import { loadLearning } from '../../lib/progress';
 import { placesOf, stepOf } from '../../lib/path';
 import { isOld } from '../../lib/sources';
+import { url } from '../../lib/url';
 
 const fiche = await getEntry('fiches', Astro.params.id!);
 if (!fiche) return new Response('Introuvable', { status: 404 });
 const { Content } = await render(fiche);
 // La vue est enregistrée côté serveur, avant le calcul du parcours : le quiz s'ouvre dès l'affichage de la fiche.
-await (await getDb()).execute({ sql: 'INSERT INTO fiche_views (fiche_id) VALUES (?)', args: [fiche.id] });
+await (await getDb()).execute({ sql: 'INSERT INTO politique_fiche_views (fiche_id) VALUES (?)', args: [fiche.id] });
 const { path } = await loadLearning();
 const step = stepOf(path, 'lesson', fiche.id);
 const quizOpen = step && step.status !== 'locked';
@@ -47,7 +48,7 @@ const link = 'text-blue-700 underline';
 
 <Base title={d.name}>
   <article data-fiche-id={fiche.id}>
-    <a href={`/fiches?type=${d.kind}`} class="text-sm text-slate-500 hover:text-blue-700">← Fiches · {KINDS[d.kind]}</a>
+    <a href={url(`/fiches?type=${d.kind}`)} class="text-sm text-slate-500 hover:text-blue-700">← Fiches · {KINDS[d.kind]}</a>
     <header class="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-2">
       <h1 class="text-3xl font-bold">{d.name}</h1>
       <span class="rounded bg-slate-200 px-2 py-0.5 text-sm">{KINDS[d.kind]}</span>
@@ -58,7 +59,7 @@ const link = 'text-blue-700 underline';
       {
         quiz && quizOpen && (
           <a
-            href={`/quiz/fiche/${fiche.id}`}
+            href={url(`/quiz/fiche/${fiche.id}`)}
             class="ml-auto self-center rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
           >
             🎯 Quiz {d.name}
@@ -93,7 +94,7 @@ const link = 'text-blue-700 underline';
         party && (
           <>
             <dt class="text-slate-500">Parti</dt>
-            <dd><a href={`/fiches/${party.id}`} class={link}>{party.data.name}</a></dd>
+            <dd><a href={url(`/fiches/${party.id}`)} class={link}>{party.data.name}</a></dd>
           </>
         )
       }
@@ -105,7 +106,7 @@ const link = 'text-blue-700 underline';
               {members.map((m, i) => (
                 <>
                   {i > 0 && ', '}
-                  <a href={`/fiches/${m.id}`} class={link}>{m.data.name}</a>
+                  <a href={url(`/fiches/${m.id}`)} class={link}>{m.data.name}</a>
                 </>
               ))}
             </dd>
@@ -118,7 +119,7 @@ const link = 'text-blue-700 underline';
             <dt class="text-slate-500">Tags</dt>
             <dd>
               {d.tags.map((t) => (
-                <a href={`/fiches?tag=${t}`} class="mr-2 text-slate-600 hover:text-blue-700">#{t}</a>
+                <a href={url(`/fiches?tag=${t}`)} class="mr-2 text-slate-600 hover:text-blue-700">#{t}</a>
               ))}
             </dd>
           </>
@@ -142,7 +143,7 @@ const link = 'text-blue-700 underline';
           <ul class="space-y-2">
             {links.map((l) => (
               <li class="rounded border border-slate-200 bg-white px-3 py-2">
-                <a href={`/fiches/${l.fiche.id}`} class="font-medium text-blue-700 underline">{l.fiche.data.name}</a>
+                <a href={url(`/fiches/${l.fiche.id}`)} class="font-medium text-blue-700 underline">{l.fiche.data.name}</a>
                 <span class="text-sm text-slate-600"> : {l.note}</span>
               </li>
             ))}
@@ -176,7 +177,7 @@ const link = 'text-blue-700 underline';
       step?.status === 'current' && (
         <div class="mt-8 flex max-w-3xl flex-wrap items-center gap-3 rounded border-2 border-blue-300 bg-blue-50 px-4 py-4">
           <span class="font-medium text-blue-900">Fiche lue ? Vérifie que c'est acquis : 7 bonnes réponses sur 10 valident l'étape.</span>
-          <a href={`/quiz/fiche/${fiche.id}`} class="ml-auto rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
+          <a href={url(`/quiz/fiche/${fiche.id}`)} class="ml-auto rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">
             Passer au quiz →
           </a>
         </div>
@@ -186,11 +187,12 @@ const link = 'text-blue-700 underline';
 </Base>
 
 <script>
+  import { url } from '../../lib/url';
   const ficheId = document.querySelector<HTMLElement>('[data-fiche-id]')!.dataset.ficheId;
 
   const mastery = document.querySelector('[data-quiz-mastery]');
   if (mastery) {
-    fetch('/api/progress')
+    fetch(url('/api/progress'))
       .then((r) => r.json())
       .then(({ fiches }: { fiches: Record<string, { mastered: number; total: number; sessions: number }> }) => {
         const f = fiches[ficheId!];

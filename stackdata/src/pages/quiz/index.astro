@@ -5,6 +5,7 @@ import { SESSION_SIZE } from '../../lib/rewards';
 import { KINDS } from '../../lib/taxonomy';
 import { loadLearning } from '../../lib/progress';
 import { allSteps, isOpen, stepOf } from '../../lib/path';
+import { url } from '../../lib/url';
 
 // Ordre des parcours ; un quiz verrouillé reste listé, grisé (sa page explique comment l'ouvrir).
 const { path } = await loadLearning();
@@ -37,7 +38,7 @@ const groups = Object.entries(KINDS)
     {
       themes.map((t) => (
         <li data-theme={t.id}>
-          <a href={`/quiz/${t.id}`} class:list={['flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400', locked('theme', t.id) && 'opacity-50']}>
+          <a href={url(`/quiz/${t.id}`)} class:list={['flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400', locked('theme', t.id) && 'opacity-50']}>
             <span class="flex flex-wrap items-baseline justify-between gap-x-3">
               <span class="text-lg font-semibold">{locked('theme', t.id) && '🔒 '}{t.data.title}</span>
               <span class="shrink-0 text-sm text-slate-500">{t.data.questions.length} questions</span>
@@ -66,7 +67,7 @@ const groups = Object.entries(KINDS)
           {g.techs.map((t) => (
             <li data-tech={t.id}>
               <a
-                href={`/quiz/techno/${t.id}`}
+                href={url(`/quiz/techno/${t.id}`)}
                 class:list={['flex flex-col gap-1.5 rounded border border-slate-200 bg-white px-3 py-2 hover:border-slate-400', locked('lesson', t.id) && 'opacity-50']}
               >
                 <span class="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -88,6 +89,7 @@ const groups = Object.entries(KINDS)
 </Base>
 
 <script>
+  import { url } from '../../lib/url';
   type Mastery = { mastered: number; total: number; sessions: number };
 
   function fill(li: HTMLElement, m: Mastery | undefined, text: (m: Mastery) => string) {
@@ -96,7 +98,7 @@ const groups = Object.entries(KINDS)
     li.querySelector('[data-mastery]')!.textContent = text(m);
   }
 
-  fetch('/api/progress')
+  fetch(url('/api/progress'))
     .then((r) => r.json())
     .then(({ themes, techs }: { themes: Record<string, Mastery>; techs: Record<string, Mastery> }) => {
       for (const li of document.querySelectorAll<HTMLElement>('[data-theme]')) {

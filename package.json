@@ -9,7 +9,8 @@
     "dev:data": "npm run dev -w stackdata",
     "dev:politique": "npm run dev -w stackpolitique",
     "build": "npm run build --workspaces",
-    "test": "npm test --workspaces --if-present"
+    "test": "npm test --workspaces --if-present",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "allowScripts": {
     "fsevents": false

@@ -7,6 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 // chaque page ; sur Vercel, les fichiers prérendus seraient servis sans passer par lui.
 export default defineConfig({
   integrations: [react()],
+  // Servie sous /politique : un seul projet Vercel héberge le portail (/) et les deux apps (scripts/build-vercel.mjs à la racine).
+  base: '/politique',
   output: 'server',
   adapter: vercel(),
   // 4322 : StackData garde 4321, les deux serveurs de dev tournent en même temps.

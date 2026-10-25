@@ -16,7 +16,7 @@ Projet perso, pour un seul utilisateur, protégé par un mot de passe, pensé po
 
 ## Démarrer
 
-L'installation est décrite dans le [README de la racine](../README.md). Ensuite, depuis la racine : `npm run dev:politique`, ou depuis ce dossier : `npm run dev`. L'app tourne sur http://localhost:4322. Sans configuration, la progression va dans `data/stackpolitique.db`.
+L'installation est décrite dans le [README de la racine](../README.md). Ensuite, depuis la racine : `npm run dev:politique`, ou depuis ce dossier : `npm run dev`. L'app tourne sur http://localhost:4322/politique/ ; en ligne, sous `/politique`, derrière le portail commun aux deux apps. Sans configuration, la progression va dans `data/stackpolitique.db`.
 
 ## Règles de contenu
 

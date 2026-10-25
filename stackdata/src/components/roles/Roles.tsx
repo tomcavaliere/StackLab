@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { url } from '../../lib/url';
 
 export interface RoleTech {
   id: string;
@@ -129,7 +130,7 @@ export default function Roles({ roles, techs }: Props) {
 
 function TechLink({ id, techs }: { id: string; techs: Record<string, TechInfo> }) {
   return (
-    <a href={`/fiches/${id}`} className="font-semibold text-blue-700 hover:underline">
+    <a href={url(`/fiches/${id}`)} className="font-semibold text-blue-700 hover:underline">
       {techs[id]?.name ?? id}
     </a>
   );
@@ -214,7 +215,7 @@ function Detail({ role, all, techs, onCompare }: { role: Indexed; all: Indexed[]
           {total - usedElsewhere} propre{total - usedElsewhere > 1 ? 's' : ''} à celui-ci
         </p>
         {role.parcours && (
-          <a href={`/parcours/${role.parcours}`} className="mt-3 inline-block rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
+          <a href={url(`/parcours/${role.parcours}`)} className="mt-3 inline-block rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
             Le parcours {role.name} →
           </a>
         )}

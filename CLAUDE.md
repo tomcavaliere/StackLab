@@ -7,18 +7,19 @@ Deux apps web perso, un seul utilisateur chacune, même méthode (fiches, quiz, 
 | `stackdata/` | **StackData** (ex-StackLab) | le rôle de chaque techno dans une stack tech / data, et composer une stack pour un besoin |
 | `stackpolitique/` | **StackPolitique** | les mouvements politiques français : histoire, idées, programme et figures de chaque parti |
 
-Chaque app a son propre `CLAUDE.md` (périmètre, architecture, procédures, avancement), son projet Vercel et sa base Turso. Le moteur est **copié** d'une app à l'autre, pas partagé : chacune évolue librement. Un changement du moteur qui vaut pour les deux se reporte à la main.
+Chaque app a son propre `CLAUDE.md` (périmètre, architecture, procédures, avancement). Les deux sont servies par un seul projet Vercel, derrière un portail et un seul mot de passe (voir « Déploiement »). Le moteur est **copié** d'une app à l'autre, pas partagé : chacune évolue librement. Un changement du moteur qui vaut pour les deux se reporte à la main.
 
 ## Monorepo
 
 - Workspaces npm (`package.json` racine) : un seul `package-lock.json` et un seul `node_modules` à la racine. Installer avec `npm ci` **à la racine**. Ajouter une dépendance à une app : `npm install <paquet> -w stackdata`.
-- Chaque app est autonome dans son dossier : `src/`, `scripts/`, `astro.config.mjs`, `vercel.json`, `.env` (non versionné), `data/` (base locale, non versionnée), `.claude/skills/` (skills de l'app).
+- Chaque app est autonome dans son dossier : `src/`, `scripts/`, `astro.config.mjs`, `.env` (non versionné), `data/` (base locale, non versionnée), `.claude/skills/` (skills de l'app).
 - Une commande d'app se lance depuis son dossier (`npm run build`) ou depuis la racine (`npm run build -w stackdata`).
 
 | Commande (racine) | Effet |
 |---|---|
-| `npm run dev:data` | StackData sur http://localhost:4321 |
-| `npm run dev:politique` | StackPolitique sur http://localhost:4322 |
+| `npm run dev:data` | StackData sur http://localhost:4321/data/ |
+| `npm run dev:politique` | StackPolitique sur http://localhost:4322/politique/ |
+| `npm run build:vercel` | Build des deux apps et assemblage du projet Vercel (`.vercel/output`) |
 | `npm run build` | Build de toutes les apps |
 | `npm test` | Tests de toutes les apps |
 
@@ -51,9 +52,20 @@ export PATH="$PWD/.venv/bin:$PATH"; npm ci
 
 **Script d'installation refusé** (`allowScripts` dans le `package.json` racine) : `fsevents` (watcher de fichiers de Vite, macOS seulement). C'est voulu : le paquet inclut son binaire précompilé. Ne pas l'approuver, sinon npm lance une compilation node-gyp qui exige les Xcode Command Line Tools. (`@libsql/client` n'a pas de script : son binaire natif vient d'un paquet optionnel par plateforme.)
 
-## Déploiement
+## Déploiement : un seul projet Vercel
 
-Un projet Vercel par app, tous reliés à ce dépôt GitHub, chacun avec **Root Directory = son dossier** (et « Include files outside the root directory » activé, pour le lockfile racine). Chaque `git push` sur `main` redéploie. Les variables (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `APP_PASSWORD`) sont dans les réglages de chaque projet.
+Un seul projet Vercel, relié au dépôt GitHub, **Root Directory vide** (la racine). Chaque `git push` sur `main` redéploie.
+
+| URL | Servie par |
+|---|---|
+| `/` | le portail (`portal/`) : choisir entre les deux apps |
+| `/data/…` | StackData (`base: '/data'` dans son `astro.config.mjs`) |
+| `/politique/…` | StackPolitique (`base: '/politique'`) |
+
+- **Build** : `vercel.json` (racine) lance `npm run build:vercel`, c'est-à-dire `scripts/build-vercel.mjs`. Il construit les deux apps, puis assemble leurs sorties `@astrojs/vercel` dans `.vercel/output` (Build Output API) : trois fonctions (`index`, `data`, `politique`), les assets de chaque app recopiés sous `static/<préfixe>/`, et un `config.json` qui envoie chaque préfixe à sa fonction. Le script échoue si la sortie de l'adapter change de forme : c'est là qu'il faut regarder après une mise à jour d'Astro ou de l'adapter.
+- **Liens internes** : chaque app est servie sous son préfixe, donc tout lien interne passe par `url()` (`src/lib/url.ts` de chaque app) : `href={url('/fiches')}`, `fetch(url('/api/progress'))`, `Astro.redirect(url('/verrou'))`. Un lien `href="/…"` écrit en dur sort de l'app (seul le lien « ⌂ Stacks » de la nav vise `/`, le portail).
+- **Mot de passe** : `APP_PASSWORD`, vérifié par le middleware de chaque app et par le portail, avec le même realm Basic Auth (`Stacks`) : le navigateur ne le demande qu'une fois pour les trois.
+- **Turso** : une seule base (`stacklab`, son nom d'origine), partagée. Les tables de StackPolitique sont préfixées `politique_` pour ne pas croiser celles de StackData. Variables du projet : `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `APP_PASSWORD`. Région des fonctions : `dub1` (`vercel.json`), la même que la base (`aws-eu-west-1`).
 
 ## Git
 

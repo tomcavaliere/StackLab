@@ -1,6 +1,6 @@
 # Stacks
 
-Des apps web perso pour apprendre un domaine en profondeur : des fiches, un quiz par fiche, des parcours guidés, des révisions espacées et une page de progression. Chaque app est déployée sur Vercel, protégée par un mot de passe, pour s'en servir depuis le téléphone ; la progression est stockée dans [Turso](https://turso.tech).
+Des apps web perso pour apprendre un domaine en profondeur : des fiches, un quiz par fiche, des parcours guidés, des révisions espacées et une page de progression. Les deux apps sont déployées ensemble sur Vercel, derrière une page d'accueil qui permet de choisir l'une ou l'autre et un seul mot de passe, pour s'en servir depuis le téléphone ; la progression est stockée dans [Turso](https://turso.tech).
 
 | App | Dossier | Sujet |
 |---|---|---|
@@ -39,11 +39,12 @@ Dans le terminal intégré de VS Code, le dossier du venv est déjà en tête du
 
 ## Organisation
 
-Un dépôt, des workspaces npm : un `node_modules` et un lockfile communs à la racine, une app autonome par dossier (son code, son contenu, sa base locale, son projet Vercel avec Root Directory = son dossier). Le moteur est copié d'une app à l'autre plutôt que partagé.
+Un dépôt, des workspaces npm : un `node_modules` et un lockfile communs à la racine, une app autonome par dossier (son code, son contenu, sa base locale). En ligne, un seul projet Vercel sert le portail (`/`), StackData (`/data`) et StackPolitique (`/politique`) : `scripts/build-vercel.mjs` construit les deux apps et assemble leurs sorties. Le moteur est copié d'une app à l'autre plutôt que partagé.
 
 | Commande (racine) | Effet |
 |---|---|
-| `npm run dev:data` | StackData sur http://localhost:4321 |
-| `npm run dev:politique` | StackPolitique sur http://localhost:4322 |
+| `npm run dev:data` | StackData sur http://localhost:4321/data/ |
+| `npm run dev:politique` | StackPolitique sur http://localhost:4322/politique/ |
+| `npm run build:vercel` | Build complet du projet Vercel (portail + deux apps) |
 | `npm run build` | Build de toutes les apps |
 | `npm test` | Tests de toutes les apps |

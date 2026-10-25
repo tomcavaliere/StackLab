@@ -4,15 +4,16 @@ import { getDb } from './db';
 import { computePath, doneQuizzes, type Parcours, type Path, type Step } from './path';
 import { dueReviews, reviewStates, type ReviewState, type Reviews } from './review';
 import { BADGES, computeProgress, ficheQuizId, type History, type Progress, type QuizSession } from './rewards';
+import { url } from './url';
 
 /** Historique complet, dans l'ordre chronologique (les ids croissent avec le temps). */
 export async function loadHistory(): Promise<History> {
   const db = await getDb();
   const [sessionRows, answerRows, viewRows] = await db.batch(
     [
-      'SELECT id, theme_id, played_at FROM quiz_sessions ORDER BY id',
-      'SELECT session_id, question_id, chosen, correct FROM quiz_answers ORDER BY session_id, position',
-      'SELECT DISTINCT fiche_id FROM fiche_views',
+      'SELECT id, theme_id, played_at FROM politique_quiz_sessions ORDER BY id',
+      'SELECT session_id, question_id, chosen, correct FROM politique_quiz_answers ORDER BY session_id, position',
+      'SELECT DISTINCT fiche_id FROM politique_fiche_views',
     ],
     'read',
   );
@@ -51,7 +52,7 @@ export async function loadParcours(): Promise<Parcours[]> {
 /** Le parcours suivi (table settings), null s'il n'a jamais été choisi. */
 export async function loadFollowed(): Promise<string | null> {
   const db = await getDb();
-  const row = (await db.execute("SELECT value FROM settings WHERE key = 'parcours'")).rows[0] as unknown as { value: string } | undefined;
+  const row = (await db.execute("SELECT value FROM politique_settings WHERE key = 'parcours'")).rows[0] as unknown as { value: string } | undefined;
   return row?.value ?? null;
 }
 
@@ -83,11 +84,11 @@ export async function describeStep(step: Step | null) {
   if (step.kind === 'lesson') {
     const name = (await getEntry('fiches', step.id))?.data.name ?? step.id;
     return step.viewed
-      ? { label: `Quiz ${name}`, href: `/quiz/fiche/${step.id}` }
-      : { label: `Lire la fiche ${name}`, href: `/fiches/${step.id}` };
+      ? { label: `Quiz ${name}`, href: url(`/quiz/fiche/${step.id}`) }
+      : { label: `Lire la fiche ${name}`, href: url(`/fiches/${step.id}`) };
   }
   const title = (await getEntry('quiz', step.id))?.data.title ?? step.id;
-  return { label: `Quiz du thème ${title}`, href: `/quiz/${step.id}` };
+  return { label: `Quiz du thème ${title}`, href: url(`/quiz/${step.id}`) };
 }
 
 export interface ProgressView extends Omit<Progress, 'unlocked'> {
@@ -110,12 +111,12 @@ export async function getProgress(): Promise<ProgressView> {
   const db = await getDb();
   const inserted = unlocked.length
     ? await db.batch(
-        unlocked.map((id) => ({ sql: 'INSERT OR IGNORE INTO badges (badge_id) VALUES (?)', args: [id] })),
+        unlocked.map((id) => ({ sql: 'INSERT OR IGNORE INTO politique_badges (badge_id) VALUES (?)', args: [id] })),
         'write',
       )
     : [];
   const newBadges = unlocked.filter((_, i) => inserted[i].rowsAffected > 0);
-  const badgeRows = (await db.execute('SELECT badge_id, unlocked_at FROM badges')).rows as unknown as {
+  const badgeRows = (await db.execute('SELECT badge_id, unlocked_at FROM politique_badges')).rows as unknown as {
     badge_id: string;
     unlocked_at: string;
   }[];

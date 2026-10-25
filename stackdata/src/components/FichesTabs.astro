@@ -2,6 +2,7 @@
 // Onglets de la bibliothèque : un par type de fiche (ordre de KINDS), puis « Par métier ». Défilent sur téléphone.
 import { getCollection } from 'astro:content';
 import { KINDS } from '../lib/taxonomy';
+import { url } from '../lib/url';
 
 interface Props {
   current: string; // un kind, 'metier', ou '' (vue d'un tag)
@@ -10,9 +11,9 @@ const { current } = Astro.props;
 const techs = await getCollection('techs');
 const tabs = [
   ...Object.entries(KINDS)
-    .map(([kind, label]) => ({ key: kind, href: `/fiches?type=${kind}`, label, count: techs.filter((t) => t.data.kind === kind).length }))
+    .map(([kind, label]) => ({ key: kind, href: url(`/fiches?type=${kind}`), label, count: techs.filter((t) => t.data.kind === kind).length }))
     .filter((t) => t.count > 0),
-  { key: 'metier', href: '/fiches/metiers', label: 'Par métier', count: 0 },
+  { key: 'metier', href: url('/fiches/metiers'), label: 'Par métier', count: 0 },
 ];
 ---
 

@@ -5,11 +5,12 @@ import { CONFIDENCES, LAYERS, SOURCE_TYPES, type Layer } from '../../lib/taxonom
 import { isOld } from '../../lib/sources';
 import { loadLearning } from '../../lib/progress';
 import { companyOpen } from '../../lib/path';
+import { url } from '../../lib/url';
 
 const company = await getEntry('companies', Astro.params.id!);
 if (!company) return new Response('Introuvable', { status: 404 });
 const { path } = await loadLearning();
-if (!companyOpen(path, company.data.scenario?.id)) return Astro.redirect(`/verrou?etape=company&id=${company.id}`);
+if (!companyOpen(path, company.data.scenario?.id)) return Astro.redirect(url(`/verrou?etape=company&id=${company.id}`));
 const c = company.data;
 const { Content } = await render(company);
 const techs = new Map((await getCollection('techs')).map((t) => [t.id, t]));
@@ -26,7 +27,7 @@ const oldCount = Object.values(c.stack)
 ---
 
 <Base title={c.company}>
-  <a href="/entreprises" class="text-sm text-slate-500 hover:text-blue-700">← Entreprises</a>
+  <a href={url('/entreprises')} class="text-sm text-slate-500 hover:text-blue-700">← Entreprises</a>
   <h1 class="mt-2 text-3xl font-bold">{c.company}</h1>
   <p class="text-slate-500">{c.product}</p>
   <p class="mt-3 max-w-3xl text-lg">{c.need}</p>
@@ -38,7 +39,7 @@ const oldCount = Object.values(c.stack)
   {
     c.scenario && (
       <a
-        href={`/jouer/${c.scenario.id}`}
+        href={url(`/jouer/${c.scenario.id}`)}
         class="mt-4 inline-block rounded bg-violet-600 px-4 py-2 font-medium text-white hover:bg-violet-700"
       >
         Devine d'abord la stack de {c.company} →
@@ -67,7 +68,7 @@ const oldCount = Object.values(c.stack)
                 <tr class:list={['border-t border-slate-100 align-top', old && 'bg-amber-50']}>
                   <td class="px-3 py-2 whitespace-nowrap">{LAYERS[l]}</td>
                   <td class="px-3 py-2 whitespace-nowrap">
-                    <a href={`/fiches/${e.tech.id}`} class="font-medium text-blue-700 underline">
+                    <a href={url(`/fiches/${e.tech.id}`)} class="font-medium text-blue-700 underline">
                       {techs.get(e.tech.id)?.data.name}
                     </a>
                   </td>

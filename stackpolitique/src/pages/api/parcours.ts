@@ -15,7 +15,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   const db = await getDb();
   await db.execute({
-    sql: "INSERT INTO settings (key, value) VALUES ('parcours', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+    sql: "INSERT INTO politique_settings (key, value) VALUES ('parcours', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
     args: [parsed.data.id],
   });
   return new Response(null, { status: 204 });

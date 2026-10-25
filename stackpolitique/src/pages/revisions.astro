@@ -6,6 +6,7 @@ import Quiz, { type QuizQuestion } from '../components/quiz/Quiz';
 import { loadLearning } from '../lib/progress';
 import { ficheOfQuiz, ficheQuizId } from '../lib/rewards';
 import { REVIEW } from '../lib/review';
+import { url } from '../lib/url';
 
 const { reviews } = await loadLearning();
 const [fiches, themes, ficheQuizzes] = await Promise.all([getCollection('fiches'), getCollection('quiz'), getCollection('ficheQuiz')]);
@@ -28,7 +29,7 @@ const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',
 ---
 
 <Base title="Révisions">
-  <a href="/" class="text-sm text-slate-500 hover:text-blue-700">← Parcours</a>
+  <a href={url('/')} class="text-sm text-slate-500 hover:text-blue-700">← Parcours</a>
   <h1 class="mt-2 text-2xl font-bold">Révisions du jour</h1>
   {
     questions.length > 0 ? (
@@ -52,10 +53,10 @@ const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR',
         {reviews.fresh > 0 && (
           <p class="mt-2 text-slate-600">
             {reviews.fresh} questions jamais vues des étapes validées t'attendent dans{' '}
-            <a href="/renforcement" class="text-blue-700 underline">Renforcement</a> : une fois vues, elles entrent dans les révisions.
+            <a href={url('/renforcement')} class="text-blue-700 underline">Renforcement</a> : une fois vues, elles entrent dans les révisions.
           </p>
         )}
-        <a href="/" class="mt-4 inline-block rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Continuer le parcours →</a>
+        <a href={url('/')} class="mt-4 inline-block rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Continuer le parcours →</a>
       </div>
     )
   }

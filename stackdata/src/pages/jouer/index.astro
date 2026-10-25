@@ -5,6 +5,7 @@ import LayerBadges from '../../components/LayerBadges.astro';
 import { SCENARIO_TYPES } from '../../lib/taxonomy';
 import { loadLearning } from '../../lib/progress';
 import { allSteps, isOpen, stepOf } from '../../lib/path';
+import { url } from '../../lib/url';
 
 // Ordre des parcours ; un scénario verrouillé reste listé, grisé (sa page explique comment l'ouvrir).
 const { path } = await loadLearning();
@@ -24,7 +25,7 @@ const guessOf = (id: string) => companies.find((c) => c.data.scenario?.id === id
         const company = guessOf(s.id);
         return (
           <li data-scenario={s.id}>
-            <a href={`/jouer/${s.id}`} class:list={['flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400', locked(s.id) && 'opacity-50']}>
+            <a href={url(`/jouer/${s.id}`)} class:list={['flex h-full flex-col gap-2 rounded border border-slate-200 bg-white p-5 hover:border-slate-400', locked(s.id) && 'opacity-50']}>
               <span class="flex items-baseline justify-between gap-3">
                 <span class="text-lg font-semibold">{locked(s.id) && '🔒 '}{s.data.title}</span>
                 <span class="shrink-0 rounded bg-slate-200 px-2 py-0.5 text-xs">{SCENARIO_TYPES[s.data.type]}</span>
@@ -43,7 +44,8 @@ const guessOf = (id: string) => companies.find((c) => c.data.scenario?.id === id
 </Base>
 
 <script>
-  fetch('/api/attempts')
+  import { url } from '../../lib/url';
+  fetch(url('/api/attempts'))
     .then((r) => r.json())
     .then((stats: Record<string, { best: number; count: number }>) => {
       for (const li of document.querySelectorAll<HTMLElement>('[data-scenario]')) {

@@ -4,6 +4,7 @@ import { getDb } from './db';
 import { computePath, doneQuizzes, type Parcours, type Path, type Step } from './path';
 import { dueReviews, reviewStates, type ReviewState, type Reviews } from './review';
 import { BADGES, computeProgress, techQuizId, type History, type Progress, type QuizSession } from './rewards';
+import { url } from './url';
 
 /** Historique complet, dans l'ordre chronologique (les ids croissent avec le temps). */
 export async function loadHistory(): Promise<History> {
@@ -91,15 +92,15 @@ export async function describeStep(step: Step | null) {
   if (step.kind === 'lesson') {
     const name = (await getEntry('techs', step.id))?.data.name ?? step.id;
     return step.viewed
-      ? { label: `Quiz ${name}`, href: `/quiz/techno/${step.id}` }
-      : { label: `Lire la fiche ${name}`, href: `/fiches/${step.id}` };
+      ? { label: `Quiz ${name}`, href: url(`/quiz/techno/${step.id}`) }
+      : { label: `Lire la fiche ${name}`, href: url(`/fiches/${step.id}`) };
   }
   if (step.kind === 'theme') {
     const title = (await getEntry('quiz', step.id))?.data.title ?? step.id;
-    return { label: `Quiz du thème ${title}`, href: `/quiz/${step.id}` };
+    return { label: `Quiz du thème ${title}`, href: url(`/quiz/${step.id}`) };
   }
   const title = (await getEntry('scenarios', step.id))?.data.title ?? step.id;
-  return { label: `Scénario : ${title}`, href: `/jouer/${step.id}` };
+  return { label: `Scénario : ${title}`, href: url(`/jouer/${step.id}`) };
 }
 
 export interface ProgressView extends Omit<Progress, 'unlocked'> {

@@ -2,6 +2,7 @@
 // Onglets de la bibliothèque : un par type de fiche (ordre de KINDS). Défilent sur téléphone.
 import { getCollection } from 'astro:content';
 import { KINDS } from '../lib/taxonomy';
+import { url } from '../lib/url';
 
 interface Props {
   current: string; // un kind, ou '' (vue d'un tag)
@@ -9,7 +10,7 @@ interface Props {
 const { current } = Astro.props;
 const fiches = await getCollection('fiches');
 const tabs = Object.entries(KINDS)
-  .map(([kind, label]) => ({ key: kind, href: `/fiches?type=${kind}`, label, count: fiches.filter((f) => f.data.kind === kind).length }))
+  .map(([kind, label]) => ({ key: kind, href: url(`/fiches?type=${kind}`), label, count: fiches.filter((f) => f.data.kind === kind).length }))
   .filter((t) => t.count > 0);
 ---
 

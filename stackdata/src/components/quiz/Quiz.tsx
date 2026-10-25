@@ -11,6 +11,7 @@ import {
   type QuizAnswer,
 } from '../../lib/rewards';
 import { passes, PASS } from '../../lib/path';
+import { url } from '../../lib/url';
 
 // Deux formats : thème (answer et decoys sont des ids de techno, un seul leurre) ou quiz d'une techno (QCM en texte).
 // En révision, les questions viennent de plusieurs quiz : chacune porte son quizId (et son techId si c'est un quiz de techno).
@@ -89,7 +90,7 @@ export default function Quiz({ themeId, questions, techNames, techId, review = f
     try {
       let s: Record<string, QuestionStat> = {};
       if (!review) {
-        const res = await fetch(`/api/quiz?theme=${encodeURIComponent(themeId!)}`);
+        const res = await fetch(url(`/api/quiz?theme=${encodeURIComponent(themeId!)}`));
         if (!res.ok) throw new Error(await res.text());
         s = await res.json();
       }
@@ -141,7 +142,7 @@ export default function Quiz({ themeId, questions, techNames, techId, review = f
     }
     setPhase('done');
     try {
-      const res = await fetch('/api/quiz', {
+      const res = await fetch(url('/api/quiz'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessions: bySession() }),
@@ -276,7 +277,7 @@ export default function Quiz({ themeId, questions, techNames, techId, review = f
           <p className="mt-2 text-slate-800">{round.q.why}</p>
           <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             {fiches.map((id) => (
-              <a key={id} href={`/fiches/${id}`} target="_blank" className="text-blue-700 underline">
+              <a key={id} href={url(`/fiches/${id}`)} target="_blank" className="text-blue-700 underline">
                 Fiche {name(id)} ↗
               </a>
             ))}
@@ -405,7 +406,7 @@ function Summary({
           </button>
         )}
         {reinforce && (
-          <a href="/renforcement" className={`${button} ${remaining > 0 ? 'bg-slate-200 hover:bg-slate-300' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+          <a href={url('/renforcement')} className={`${button} ${remaining > 0 ? 'bg-slate-200 hover:bg-slate-300' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
             Renforcement
           </a>
         )}
@@ -423,7 +424,7 @@ function Summary({
             Rejouer
           </button>
         )}
-        <a href="/" className={`${button} bg-slate-200 hover:bg-slate-300`}>
+        <a href={url('/')} className={`${button} bg-slate-200 hover:bg-slate-300`}>
           Parcours
         </a>
       </div>

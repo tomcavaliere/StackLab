@@ -10,15 +10,15 @@ L'environnement (`.venv`, PATH, installation) et le monorepo sont décrits dans 
 
 ## Déploiement
 
-- **Vercel** (adapter `@astrojs/vercel`), projet à part relié au même dépôt, Root Directory = `stackpolitique`. Région des fonctions : `vercel.json` (`dub1`), la même que la base Turso (`aws-eu-west-1`).
-- **Turso** : base `stackpolitique`. Le schéma s'applique tout seul au premier appel, comme en local.
+- **Vercel** (adapter `@astrojs/vercel`) : l'app est servie sous **`/politique`** (`base` dans `astro.config.mjs`) par le projet Vercel commun aux deux apps, derrière le portail ; déploiement décrit dans le `CLAUDE.md` racine. **Tout lien interne passe par `url()`** (`src/lib/url.ts`) : `href={url('/fiches')}`, `fetch(url('/api/…'))`, `Astro.redirect(url('/verrou'))`.
+- **Turso** : la base de StackData (`stacklab`), partagée. Les tables de StackPolitique sont préfixées **`politique_`** (`politique_quiz_sessions`…) ; une nouvelle table doit l'être aussi. Le schéma s'applique tout seul au premier appel, comme en local.
 - **Mot de passe** : `src/middleware.ts`, Basic Auth sur toutes les requêtes.
 
 ## Commandes
 
 | Commande | Effet |
 |---|---|
-| `npm run dev` | Serveur local sur http://localhost:4322 (StackData garde 4321) |
+| `npm run dev` | Serveur local sur http://localhost:4322/politique/ (StackData garde 4321) |
 | `npm run build` | Vérifie les sections des fiches, les `party` et les quiz (`scripts/check-content.mjs`), puis `astro build` (valide tout le contenu) |
 | `npm test` | Tests Vitest (récompenses, parcours, révisions) |
 | `node scripts/check-quality.mjs lengths [ids]` | Signale les quiz où la bonne réponse est trop souvent l'option la plus longue ; avec des ids, liste les questions concernées |
@@ -61,7 +61,7 @@ scripts/check-quality.mjs  hors build : bonne réponse trop souvent la plus long
 ```
 
 - **Le contenu est de la donnée** : un fichier Markdown + frontmatter par entité, validé au build.
-- **SQLite ne stocke que la progression** (`fiche_views`, `quiz_sessions`, `quiz_answers`, `badges`, `settings`). Une session du quiz d'une fiche a `theme_id = 'fiche:<id de la fiche>'` et le texte des options dans `chosen` / `correct` ; un thème a des ids de fiche.
+- **SQLite ne stocke que la progression** (`politique_fiche_views`, `politique_quiz_sessions`, `politique_quiz_answers`, `politique_badges`, `politique_settings`). Une session du quiz d'une fiche a `theme_id = 'fiche:<id de la fiche>'` et le texte des options dans `chosen` / `correct` ; un thème a des ids de fiche.
 - **Tout est rendu à la demande** (`output: 'server'`) pour que le middleware protège chaque page. Pages dynamiques : `getEntry(collection, Astro.params.id)`, 404 si absente.
 - **Téléphone et ordi** : un seul code, Tailwind mobile d'abord, `md:` pour l'ordi. Vérifier à 390 px qu'aucune page ne défile horizontalement.
 
@@ -172,7 +172,7 @@ Le skill `quiz-theme` la déroule.
 3. Sur une base neuve, seul le quiz de la première leçon s'ouvre, après lecture de sa fiche ; les autres redirigent vers `/verrou`. Après une session ≥ 7/10, l'étape suivante est proposée, `/revisions` ne contient que des questions de cette session, `/renforcement` affiche « 10 / 20 questions vues ».
 4. **Session enregistrée** :
    ```
-   sqlite3 -header -column data/stackpolitique.db "SELECT s.id, s.theme_id, a.position, a.question_id, a.chosen, a.correct FROM quiz_sessions s JOIN quiz_answers a ON a.session_id = s.id ORDER BY s.id DESC, a.position;"
+   sqlite3 -header -column data/stackpolitique.db "SELECT s.id, s.theme_id, a.position, a.question_id, a.chosen, a.correct FROM politique_quiz_sessions s JOIN politique_quiz_answers a ON a.session_id = s.id ORDER BY s.id DESC, a.position;"
    ```
 5. Chaque fiche a ses sources affichées avec leur date, et son quiz de 20 questions (aucun avertissement au build).
 
@@ -182,4 +182,4 @@ Le skill `quiz-theme` la déroule.
 - [x] Phase C : tronc commun, 19 fiches en 4 unités (clivages ; institutions ; élections ; grands courants), 380 questions, 3 thèmes (Qui fait quoi ?, Quelle élection ?, Quel courant ?)
 - [ ] Phases D : un parcours par parti (LFI, Les Écologistes, PS, Renaissance, MoDem, Horizons, LR, RN, Reconquête)
 - [ ] Phase E : comparaisons (thèmes « quel parti défend… ? »)
-- [ ] Phase F : déploiement (Vercel, Turso)
+- [x] Déploiement : servie sous `/politique` par le projet Vercel commun, derrière le portail, tables `politique_*` dans la base Turso partagée

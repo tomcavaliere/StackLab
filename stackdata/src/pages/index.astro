@@ -5,6 +5,7 @@ import Base from '../layouts/Base.astro';
 import { describeStep, loadLearning } from '../lib/progress';
 import { allSteps, companyOpen, isOpen, stepOf, type PathParcours } from '../lib/path';
 import { ROLE_FAMILIES } from '../lib/taxonomy';
+import { url } from '../lib/url';
 
 const { path, reviews } = await loadLearning();
 const next = await describeStep(path.next);
@@ -38,7 +39,7 @@ const waiting = (p: PathParcours) => `après ${p.waitingFor.map((id) => titleOf.
   <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
     {
       reviews.due > 0 ? (
-        <a href="/revisions" class="flex flex-col rounded border-2 border-violet-300 bg-violet-50 px-5 py-4 hover:border-violet-500">
+        <a href={url('/revisions')} class="flex flex-col rounded border-2 border-violet-300 bg-violet-50 px-5 py-4 hover:border-violet-500">
           <span class="text-lg font-semibold text-violet-900">🔁 Révisions du jour : {reviews.due} question{reviews.due > 1 ? 's' : ''}</span>
           <span class="text-sm text-violet-800">À faire en premier : c'est le moment où tu risques de les oublier.</span>
         </a>
@@ -80,7 +81,7 @@ const waiting = (p: PathParcours) => `après ${p.waitingFor.map((id) => titleOf.
               {g.items.map((p) => (
                 <li>
                   <a
-                    href={`/parcours/${p.id}`}
+                    href={url(`/parcours/${p.id}`)}
                     class:list={[
                       'flex h-full flex-col gap-1 rounded border bg-white px-4 py-3 hover:border-slate-400',
                       p.id === path.followed ? 'border-blue-400' : 'border-slate-200',
@@ -114,8 +115,8 @@ const waiting = (p: PathParcours) => `après ${p.waitingFor.map((id) => titleOf.
 
   <p class="mt-8 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
     <span>Débloqués :</span>
-    <a href="/quiz" class={link}>{unlocked.quiz} quiz</a>
-    <a href="/jouer" class={link}>{unlocked.scenarios} scénario{unlocked.scenarios > 1 ? 's' : ''}</a>
-    <a href="/entreprises" class={link}>{unlocked.companies} entreprise{unlocked.companies > 1 ? 's' : ''}</a>
+    <a href={url('/quiz')} class={link}>{unlocked.quiz} quiz</a>
+    <a href={url('/jouer')} class={link}>{unlocked.scenarios} scénario{unlocked.scenarios > 1 ? 's' : ''}</a>
+    <a href={url('/entreprises')} class={link}>{unlocked.companies} entreprise{unlocked.companies > 1 ? 's' : ''}</a>
   </p>
 </Base>

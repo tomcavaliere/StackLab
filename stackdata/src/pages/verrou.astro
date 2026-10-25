@@ -5,6 +5,7 @@ import { getEntry } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { describeStep, loadLearning } from '../lib/progress';
 import { placesOf, stepOf, type StepKind } from '../lib/path';
+import { url } from '../lib/url';
 
 const kind = Astro.url.searchParams.get('etape') ?? '';
 const id = Astro.url.searchParams.get('id') ?? '';
@@ -35,7 +36,7 @@ if (kind === 'company') {
   title = kind === 'lesson' ? `Quiz ${name ?? id} : verrouillé` : `${name ?? id} : verrouillé`;
   if (step && step.status !== 'locked' && !step.viewed) {
     message = 'Lis la fiche avant de faire son quiz.';
-    action = { label: `Lire la fiche ${name ?? id}`, href: `/fiches/${id}` };
+    action = { label: `Lire la fiche ${name ?? id}`, href: url(`/fiches/${id}`) };
   } else if (places.length) {
     // Les parcours ouverts d'abord : l'étape s'y ouvrira en avançant ; sinon, il faut d'abord ouvrir le parcours.
     const where = places.map(({ parcours, unit }) => `« ${parcours.title} » (unité « ${unit.title} »)`).join(', ');
@@ -44,7 +45,7 @@ if (kind === 'company') {
     message = parcours.unlocked
       ? `Cette étape fait partie ${of} ${where}. Elle s'ouvrira quand tu y arriveras : chaque étape validée ouvre la suivante.`
       : `Cette étape fait partie du parcours « ${parcours.title} » (unité « ${places[0].unit.title} »), qui s'ouvre après ${parcours.waitingFor.map((w) => `« ${titleOf.get(w)} »`).join(', ')}.`;
-    if (parcours.unlocked) action = { label: `Ouvrir le parcours ${parcours.title}`, href: `/parcours/${parcours.id}` };
+    if (parcours.unlocked) action = { label: `Ouvrir le parcours ${parcours.title}`, href: url(`/parcours/${parcours.id}`) };
   }
 }
 ---
@@ -62,7 +63,7 @@ if (kind === 'company') {
           </a>
         )
       }
-      <a href="/" class="rounded bg-slate-200 px-4 py-2 font-medium hover:bg-slate-300">Parcours</a>
+      <a href={url('/')} class="rounded bg-slate-200 px-4 py-2 font-medium hover:bg-slate-300">Parcours</a>
     </div>
   </div>
 </Base>

@@ -7,6 +7,7 @@ import FichesTabs from '../../components/FichesTabs.astro';
 import { FAMILIES, KIND_DESCRIPTIONS, KINDS, type Kind } from '../../lib/taxonomy';
 import { getProgress, loadLearning } from '../../lib/progress';
 import { stepOf } from '../../lib/path';
+import { url } from '../../lib/url';
 
 const all = (await getCollection('fiches')).sort((a, b) => a.data.name.localeCompare(b.data.name, 'fr'));
 const names = new Map(all.map((f) => [f.id, f.data.name]));
@@ -59,7 +60,7 @@ function status(id: string): keyof typeof STATUS {
         return (
           <li data-id={t.id} data-read={stepOf(path, 'lesson', t.id)?.viewed ? '1' : ''} data-text={`${t.data.name} ${t.id} ${t.data.summary}`.toLowerCase()}>
             <a
-              href={`/fiches/${t.id}`}
+              href={url(`/fiches/${t.id}`)}
               class:list={[
                 'flex h-full flex-col gap-2 rounded border bg-white p-4 hover:border-slate-400',
                 s === 'en-cours' ? 'border-blue-400' : 'border-slate-200',

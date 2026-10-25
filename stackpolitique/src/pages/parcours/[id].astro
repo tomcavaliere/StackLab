@@ -6,6 +6,7 @@ import Base from '../../layouts/Base.astro';
 import { describeStep, loadLearning } from '../../lib/progress';
 import { isOpen, stepOf, type Step } from '../../lib/path';
 import { PARCOURS_KINDS } from '../../lib/taxonomy';
+import { url } from '../../lib/url';
 
 const { path } = await loadLearning();
 const p = path.parcours.find((c) => c.id === Astro.params.id);
@@ -30,7 +31,7 @@ const link = 'text-blue-700 underline';
 ---
 
 <Base title={p.title}>
-  <p class="text-sm text-slate-500"><a href="/" class="hover:text-blue-700">Parcours</a> · {PARCOURS_KINDS[p.kind]}</p>
+  <p class="text-sm text-slate-500"><a href={url('/')} class="hover:text-blue-700">Parcours</a> · {PARCOURS_KINDS[p.kind]}</p>
   <div class="mt-1 flex flex-wrap items-baseline justify-between gap-x-4">
     <h1 class="text-2xl font-bold">{p.title}</h1>
     <span class="text-sm text-slate-500">{p.done} / {p.total} étapes</span>
@@ -53,7 +54,7 @@ const link = 'text-blue-700 underline';
       )
     }
     {next && p.unlocked && <a href={next.href} class={`text-sm ${link}`}>Prochaine étape : {next.label}</a>}
-    {p.party && <a href={`/fiches/${p.party}`} class={`text-sm ${link}`}>La fiche du parti</a>}
+    {p.party && <a href={url(`/fiches/${p.party}`)} class={`text-sm ${link}`}>La fiche du parti</a>}
   </div>
   {
     !p.unlocked && (
@@ -87,17 +88,17 @@ const link = 'text-blue-700 underline';
                       <>
                         <span class:list={[s.status === 'locked' && 'text-slate-400']}>{ficheName.get(s.id)}</span>
                         <span class="ml-auto flex gap-3 text-sm">
-                          <a href={`/fiches/${s.id}`} class:list={[s.status === 'locked' ? 'text-slate-400 hover:text-blue-700' : link]}>
+                          <a href={url(`/fiches/${s.id}`)} class:list={[s.status === 'locked' ? 'text-slate-400 hover:text-blue-700' : link]}>
                             {s.viewed ? '✓ fiche' : 'fiche'}
                           </a>
-                          {open(s) ? <a href={`/quiz/fiche/${s.id}`} class={link}>quiz</a> : <span class="text-slate-400">quiz</span>}
+                          {open(s) ? <a href={url(`/quiz/fiche/${s.id}`)} class={link}>quiz</a> : <span class="text-slate-400">quiz</span>}
                         </span>
                       </>
                     )}
                     {s.kind === 'theme' && (
                       <>
                         <span class:list={[s.status === 'locked' && 'text-slate-400']}>Quiz du thème « {themeTitle.get(s.id)} »</span>
-                        {open(s) && <a href={`/quiz/${s.id}`} class={`ml-auto text-sm ${link}`}>jouer</a>}
+                        {open(s) && <a href={url(`/quiz/${s.id}`)} class={`ml-auto text-sm ${link}`}>jouer</a>}
                       </>
                     )}
                   </li>
@@ -112,10 +113,11 @@ const link = 'text-blue-700 underline';
 </Base>
 
 <script>
+  import { url } from '../../lib/url';
   document.getElementById('follow')?.addEventListener('click', async (e) => {
     const button = e.currentTarget as HTMLButtonElement;
     button.disabled = true;
-    const res = await fetch('/api/parcours', {
+    const res = await fetch(url('/api/parcours'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: button.dataset.id }),

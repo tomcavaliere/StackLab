@@ -6,6 +6,7 @@ import { ficheOfQuiz, isCorrect, sessionXp } from '../lib/rewards';
 import { loadLearning } from '../lib/progress';
 import { REVIEW } from '../lib/review';
 import { allSteps } from '../lib/path';
+import { url } from '../lib/url';
 
 const progress = await getProgress();
 const history = await loadHistory();
@@ -32,8 +33,8 @@ const fichesPlayed = ficheMastery.filter((t) => t.sessions > 0).length;
 
 function quizLink(themeId: string) {
   const ficheId = ficheOfQuiz(themeId);
-  if (ficheId) return { href: `/quiz/fiche/${ficheId}`, label: `Quiz fiche · ${ficheName.get(ficheId) ?? ficheId}` };
-  return { href: `/quiz/${themeId}`, label: `Quiz · ${themeTitle.get(themeId) ?? themeId}` };
+  if (ficheId) return { href: url(`/quiz/fiche/${ficheId}`), label: `Quiz fiche · ${ficheName.get(ficheId) ?? ficheId}` };
+  return { href: url(`/quiz/${themeId}`), label: `Quiz · ${themeTitle.get(themeId) ?? themeId}` };
 }
 
 const activity = history.quizSessions
@@ -79,7 +80,7 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
   </div>
 
   <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-    <a href="/" class={`${card} hover:border-slate-400`}>
+    <a href={url('/')} class={`${card} hover:border-slate-400`}>
       <h2 class="text-lg font-semibold">Parcours</h2>
       <p class="mt-1 text-sm text-slate-600">
         {stepsDone} / {distinctSteps.length} étapes · {parcoursDone} / {path.parcours.length} parcours terminés
@@ -89,7 +90,7 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
         <div class="h-full rounded-full bg-emerald-500" style={`width: ${(100 * stepsDone) / distinctSteps.length}%`}></div>
       </div>
     </a>
-    <a href="/revisions" class={`${card} hover:border-slate-400`}>
+    <a href={url('/revisions')} class={`${card} hover:border-slate-400`}>
       <h2 class="text-lg font-semibold">Révisions</h2>
       <p class="mt-1 text-sm text-slate-600">
         {reviews.due} à revoir aujourd'hui · {reviews.tracked} questions en révision, dont {reviews.mature} solidement retenues
@@ -128,7 +129,7 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
             const p = progress.themes[t.id];
             return (
               <li>
-                <a href={`/quiz/${t.id}`} class="flex items-baseline justify-between text-sm hover:text-blue-700">
+                <a href={url(`/quiz/${t.id}`)} class="flex items-baseline justify-between text-sm hover:text-blue-700">
                   <span class="font-medium">{t.data.title}</span>
                   <span class="text-slate-500">
                     {p.mastered} / {p.total}
@@ -156,7 +157,7 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
                   {pair.map((id, i) => (
                     <>
                       {i > 0 && ' ↔ '}
-                      <a href={`/fiches/${id}`} class="text-blue-700 underline">
+                      <a href={url(`/fiches/${id}`)} class="text-blue-700 underline">
                         {ficheName.get(id) ?? id}
                       </a>
                     </>
@@ -182,7 +183,7 @@ const card = 'rounded border border-slate-200 bg-white px-5 py-4';
       {
         ficheMastery.map((t) => (
           <li class:list={[t.sessions === 0 && 'opacity-50']}>
-            <a href={`/quiz/fiche/${t.id}`} class="flex items-baseline justify-between text-sm hover:text-blue-700">
+            <a href={url(`/quiz/fiche/${t.id}`)} class="flex items-baseline justify-between text-sm hover:text-blue-700">
               <span class="font-medium">{t.name}</span>
               <span class="text-slate-500">{t.mastered === t.total ? '✓' : `${t.mastered} / ${t.total}`}</span>
             </a>
