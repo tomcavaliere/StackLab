@@ -73,4 +73,25 @@ parcours:
         intro: "La secrétaire nationale et candidate, la présidente du groupe à l'Assemblée, l'écoféministe, l'ancien candidat rallié à Glucksmann, la juriste du climat et deux maires de grandes villes."
         lessons: [marine-tondelier, cyrielle-chatelain, sandrine-rousseau, yannick-jadot, marie-toussaint, eric-piolle, gregory-doucet]
         themes: [quel-ecologiste]
+
+  - id: parti-socialiste
+    kind: parti
+    party: parti-socialiste
+    title: Parti socialiste
+    intro: "Le parti de Mitterrand, Jospin et Hollande : sa refondation à Épinay, ses années au pouvoir, son déclin après 2017, son projet « Vivre libres » et la primaire de 2026 qui désigne Raphaël Glucksmann."
+    requires: [tronc-commun]
+    units:
+      - id: ps-histoire-et-identite
+        title: Histoire et identité
+        intro: "De la SFIO au PS : origines, idées, projet pour 2027 et résultats."
+        lessons: [parti-socialiste]
+      - id: ps-idees-et-strategie
+        title: Idées et stratégie
+        intro: "La social-démocratie, le courant dont se réclame le PS, et la primaire socialiste de 2026."
+        lessons: [social-democratie, primaire-socialiste-2026]
+      - id: ps-les-figures
+        title: Les figures
+        intro: "Le premier secrétaire, le président du groupe, le candidat venu de Place publique, l'ancien président, la présidente de l'Occitanie, le maire de Rouen et le refondateur d'Épinay."
+        lessons: [olivier-faure, boris-vallaud, raphael-glucksmann, francois-hollande, carole-delga, nicolas-mayer-rossignol, francois-mitterrand]
+        themes: [quel-socialiste]
 ---

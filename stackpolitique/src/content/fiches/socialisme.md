@@ -56,4 +56,4 @@ lastResearched: 2026-10-24
 ## Pour aller plus loin
 
 - L'article « Gauche socialiste en France depuis 1945 » de l'Encyclopædia Universalis.
-- Les fiches des partis de gauche, quand elles seront écrites.
+- Les fiches « Parti socialiste », « La social-démocratie » et « La France insoumise ».
